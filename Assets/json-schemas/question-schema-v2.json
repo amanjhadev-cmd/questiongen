@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QuestionSchema",
+  "version": 2,
+  "type": "object",
+  "required": ["question_text", "question_type", "marks", "difficulty", "bloom_level", "concept_uuid", "explanation"],
+  "properties": {
+    "question_text": { "type": "string", "minLength": 10, "maxLength": 2000 },
+    "question_type": { "type": "string", "enum": ["MCQ", "FIB", "TF", "MATCH", "SHORT", "LONG"] },
+    "marks": { "type": "number", "minimum": 1, "maximum": 10 },
+    "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+    "bloom_level": { "type": "string", "enum": ["remember", "understand", "apply", "analyze", "evaluate", "create"] },
+    "concept_uuid": { "type": "string", "pattern": "^[A-Z]{2,6}-\\d{4}-[A-Z0-9]{4}$" },
+    "explanation": { "type": "string", "minLength": 20, "maxLength": 3000 },
+    "options": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "items": {
+        "type": "object", "required": ["key", "text"],
+        "properties": {
+          "key": { "type": "string", "enum": ["A", "B", "C", "D"] },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "correct_option": { "type": "string", "enum": ["A", "B", "C", "D"] },
+    "diagram_required": { "type": "boolean" },
+    "diagram_description": { "type": "string", "minLength": 10 },
+    "tags": { "type": "array", "maxItems": 10, "items": { "type": "string" } },
+    "hint": { "type": "string", "maxLength": 500 },
+    "language": { "type": "string", "enum": ["en", "hi"], "default": "en" },
+    "is_ncert": { "type": "boolean" },
+    "ncert_page": { "type": "number" },
+    "year_asked": { "type": "number", "minimum": 2000, "maximum": 2030 }
+  },
+  "if": { "properties": { "question_type": { "const": "MCQ" } } },
+  "then": { "required": ["options", "correct_option"] },
+  "allOf": [
+    {
+      "if": { "properties": { "diagram_required": { "const": true } } },
+      "then": { "required": ["diagram_description"] }
+    },
+    {
+      "if": { "properties": { "is_ncert": { "const": true } } },
+      "then": { "required": ["ncert_page"] }
+    }
+  ],
+  "additionalProperties": false
+}

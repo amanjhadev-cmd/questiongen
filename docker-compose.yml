@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: questiongen_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: questiongen
+      POSTGRES_PASSWORD: questiongen_dev
+      POSTGRES_DB: questiongen_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile.dev
+    container_name: questiongen_api
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    ports:
+      - '4000:4000'
+    volumes:
+      - ./Backend:/app
+      - /app/node_modules
+    env_file:
+      - ./Backend/.env
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile.dev
+    container_name: questiongen_frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
+    env_file:
+      - ./Frontend/.env.local
+
+volumes:
+  postgres_data:

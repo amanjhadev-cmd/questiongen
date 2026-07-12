@@ -1,0 +1,53 @@
+{
+  "questions": [
+    {
+      "question_text": "Which of the following is an example of a redox reaction?",
+      "question_type": "MCQ",
+      "marks": 1,
+      "difficulty": "medium",
+      "bloom_level": "understand",
+      "concept_uuid": "SCI-1042-CH3A",
+      "options": [
+        { "key": "A", "text": "NaCl dissolving in water" },
+        { "key": "B", "text": "Rusting of iron in the presence of oxygen and moisture" },
+        { "key": "C", "text": "Melting of ice" },
+        { "key": "D", "text": "Evaporation of water" }
+      ],
+      "correct_option": "B",
+      "explanation": "Rusting involves iron (Fe) being oxidised to $\\text{Fe}_2\\text{O}_3$, making it a redox reaction. The other options involve physical changes or simple dissolution without electron transfer.",
+      "diagram_required": false,
+      "tags": ["redox", "rusting", "oxidation"],
+      "hint": "Look for the reaction where electron transfer occurs.",
+      "language": "en",
+      "is_ncert": true,
+      "ncert_page": 12
+    },
+    {
+      "question_text": "In the reaction $\\text{Zn} + \\text{CuSO}_4 \\rightarrow \\text{ZnSO}_4 + \\text{Cu}$, which substance is oxidised?",
+      "question_type": "MCQ",
+      "marks": 1,
+      "difficulty": "hard",
+      "bloom_level": "apply",
+      "concept_uuid": "SCI-1042-CH3A",
+      "options": [
+        { "key": "A", "text": "Copper" },
+        { "key": "B", "text": "Zinc sulphate" },
+        { "key": "C", "text": "Zinc" },
+        { "key": "D", "text": "Copper sulphate" }
+      ],
+      "correct_option": "C",
+      "explanation": "Zinc (Zn) loses electrons and is oxidised to $\\text{Zn}^{2+}$ in zinc sulphate. Copper ions ($\\text{Cu}^{2+}$) gain electrons and are reduced to Cu metal.",
+      "diagram_required": false,
+      "tags": ["displacement", "oxidation", "reduction"],
+      "language": "en",
+      "is_ncert": false
+    }
+  ],
+  "metadata": {
+    "subject": "Science",
+    "chapter": "Chemical Reactions and Equations",
+    "generated_at": "2024-01-15T10:30:00Z",
+    "model": "claude-sonnet-5",
+    "prompt_version": "v3"
+  }
+}
