@@ -2,61 +2,111 @@
 
 ## Overview
 
-The Prompt Library stores every LLM prompt used to generate questions. Each prompt has immutable versioned snapshots. Prompts are selected per Subject Profile.
+The Prompt Library stores every approved LLM prompt used to generate questions. Each prompt has immutable versioned snapshots. Prompts are selected per Subject Profile. Interns view and copy prompts — they do not edit them.
 
 ## Storage
-
-Prompts are stored in the `prompts` table. Each version is a row in `prompt_versions`.
 
 ```
 prompts
   └── prompt_versions (1 prompt → many versions)
 ```
 
+## What the Intern Sees (Phase 2)
+
+After creating a batch, the intern goes to the Prompt Library page for that batch. They see:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ PROMPT — Science MCQ v6                                  │
+│ (Published · Used by: CBSE Class 10 Science)            │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│ You are an expert Science teacher for CBSE Class 10.    │
+│                                                          │
+│ Generate 20 multiple choice questions on the chapter    │
+│ "Chemical Reactions and Equations".                     │
+│                                                          │
+│ Focus on these concepts (provided below).               │
+│                                                          │
+│ Rules:                                                   │
+│ - Each question must have exactly 4 options (A, B, C, D)│
+│ - Mark one correct answer                               │
+│ - Include a detailed explanation                        │
+│ - Difficulty: Easy                                      │
+│ - Bloom's level: Remember                               │
+│ - Maximum 3 concepts per question                       │
+│ - Return ONLY valid JSON. No markdown, no preamble.     │
+│                                                          │
+│ [Copy Prompt]                                            │
+├─────────────────────────────────────────────────────────┤
+│ CONCEPT LIST (concept_enabled = true)                    │
+│                                                          │
+│ UUID: SCI-1042-CH3A                                      │
+│ Concept: Combination Reaction                            │
+│ Note: Two or more substances combine to form a single   │
+│       new substance. E.g. 2H₂ + O₂ → 2H₂O             │
+│ ─────────────────────────────────────────────────────── │
+│ UUID: SCI-1042-CH3B                                      │
+│ Concept: Decomposition Reaction                          │
+│ Note: A single compound breaks into two or more simpler │
+│       substances when heated, light, or electricity.    │
+│ ─────────────────────────────────────────────────────── │
+│ UUID: SCI-1042-CH3C                                      │
+│ Concept: Redox Reaction                                  │
+│ Note: Simultaneous oxidation and reduction. One species │
+│       loses electrons (oxidised), other gains (reduced).│
+│                                                          │
+│ [Copy Concept List]                                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+If `concept_enabled = false` (English, Hindi), the Concept List section is hidden entirely.
+
+The intern copies the prompt (and concept list if shown), then pastes both into Qwen Chat externally.
+
 ## Prompt Format
 
-Every prompt is a Handlebars-style template with double-brace variables:
+Every prompt is a plain text template. Variables like `{{chapter}}` are pre-filled by the system before display — the intern copies the already-interpolated text.
 
 ```
 You are an expert {{subject}} teacher for {{board}} {{class}}.
 
-Generate {{count}} multiple choice questions on the chapter "{{chapter}}".
-
-Focus on these concepts: {{concepts}}
+Generate {{count}} {{question_type}} questions on the chapter "{{chapter}}".
 
 Rules:
 - Each question must have exactly 4 options (A, B, C, D)
 - Mark one correct answer
 - Include a detailed explanation
-- Set difficulty as: {{difficulty}}
-- Use Bloom's taxonomy level: {{bloom_level}}
-- Return ONLY valid JSON matching the provided schema. No markdown, no preamble.
+- Difficulty: {{difficulty}}
+- Bloom's level: {{bloom_level}}
+- Maximum {{max_concepts}} concepts per question
+- Return ONLY valid JSON. No markdown, no preamble.
 
-JSON Schema:
+JSON Schema to follow:
 {{schema}}
 ```
 
-## Variables
+## Variables Interpolated at Display Time
 
-| Variable | Source | Example |
-|---|---|---|
-| `{{subject}}` | Subject Profile → Subject name | "Science" |
-| `{{board}}` | Batch → Subject → Class → Board | "CBSE" |
-| `{{class}}` | Batch → Subject → Class | "Class 10" |
-| `{{chapter}}` | Batch chapter | "Chemical Reactions" |
-| `{{concepts}}` | Comma-separated from batch | "Oxidation, Reduction, Redox" |
-| `{{count}}` | User input at generation time | "20" |
-| `{{difficulty}}` | User input at generation time | "medium" |
-| `{{bloom_level}}` | User input at generation time | "apply" |
-| `{{schema}}` | Schema Version definition JSON | {...} |
+| Variable | Source |
+|---|---|
+| `{{subject}}` | Subject name |
+| `{{board}}` | Board name |
+| `{{class}}` | Class name |
+| `{{chapter}}` | Batch chapter name |
+| `{{count}}` | Batch question_count |
+| `{{question_type}}` | Batch question_type |
+| `{{difficulty}}` | Batch difficulty |
+| `{{bloom_level}}` | Not in batch — intern selects from dropdown on prompt page |
+| `{{max_concepts}}` | Subject Profile max_concepts |
+| `{{schema}}` | Schema Version definition (formatted JSON) |
 
 ## Versioning
 
-- A new version is created by copying the previous version content and editing it.
 - Versions are numbered sequentially: v1, v2, v3 ...
-- Published versions are immutable — no edits allowed.
-- A version can be archived (hidden from dropdowns) but never deleted.
-- Subject Profiles pin a specific version_id, not "latest".
+- Published versions are immutable — no edits allowed
+- A version can be archived but never deleted
+- Subject Profiles pin a specific version_id, not "latest"
 
 ## Version States
 
@@ -64,36 +114,23 @@ JSON Schema:
 draft → published → archived
 ```
 
-- `draft`: Work in progress, not available for Subject Profile selection
-- `published`: Available for Subject Profile selection
-- `archived`: Hidden from selection, but still readable for audit
-
-## Fetching Logic
-
-When n8n triggers question generation:
-
-1. Read `batch.profile_id` → `subject_profiles.prompt_version_id`
-2. Fetch `prompt_versions` row by ID
-3. Interpolate variables into template
-4. Send completed prompt to LLM API
+- `draft`: Work in progress — not available for Subject Profile selection or intern viewing
+- `published`: Available and visible to interns
+- `archived`: Hidden from everything; kept for audit
 
 ## Copy Behaviour
 
-"Duplicate" button on prompt page:
+"Duplicate as new version" button (Admin only):
 - Copies current version content into a new `draft` version
 - Version number increments
-- Original version is unchanged
-- Author of new version is the current user
+- Original is unchanged
+- New version author = current user
 
-## Prompt Library UI Rules
+## Access Rules
 
-- Super Admin and Admin: full read/write
-- SME: read-only (can view prompt content, cannot edit)
-- Intern: read-only
-
-## Selection Logic (Subject Profile Editor)
-
-Dropdown shows only:
-- Versions in `published` state
-- Filtered to prompts where `subject_id` matches OR `subject_id` is NULL (global prompts)
-- Sorted by: subject-specific first, then global; newest version first
+| Role | Access |
+|---|---|
+| Super Admin | Full CRUD + publish + archive |
+| Admin | Create prompts, edit draft versions, duplicate versions |
+| SME | Read-only: can view prompt used for a batch; cannot see Prompt Library nav |
+| Intern | Read-only: sees only the prompt for their current batch; cannot browse Prompt Library |

@@ -4,9 +4,9 @@
       "question_text": "Which of the following is an example of a redox reaction?",
       "question_type": "MCQ",
       "marks": 1,
-      "difficulty": "medium",
+      "difficulty": "easy",
       "bloom_level": "understand",
-      "concept_uuid": "SCI-1042-CH3A",
+      "concept_uuids": ["SCI-1042-CH3C"],
       "options": [
         { "key": "A", "text": "NaCl dissolving in water" },
         { "key": "B", "text": "Rusting of iron in the presence of oxygen and moisture" },
@@ -26,9 +26,9 @@
       "question_text": "In the reaction $\\text{Zn} + \\text{CuSO}_4 \\rightarrow \\text{ZnSO}_4 + \\text{Cu}$, which substance is oxidised?",
       "question_type": "MCQ",
       "marks": 1,
-      "difficulty": "hard",
+      "difficulty": "easy",
       "bloom_level": "apply",
-      "concept_uuid": "SCI-1042-CH3A",
+      "concept_uuids": ["SCI-1042-CH3C", "SCI-1042-CH3A"],
       "options": [
         { "key": "A", "text": "Copper" },
         { "key": "B", "text": "Zinc sulphate" },
@@ -36,18 +36,32 @@
         { "key": "D", "text": "Copper sulphate" }
       ],
       "correct_option": "C",
-      "explanation": "Zinc (Zn) loses electrons and is oxidised to $\\text{Zn}^{2+}$ in zinc sulphate. Copper ions ($\\text{Cu}^{2+}$) gain electrons and are reduced to Cu metal.",
+      "explanation": "Zinc (Zn) loses electrons and is oxidised to $\\text{Zn}^{2+}$ in zinc sulphate. Copper ions ($\\text{Cu}^{2+}$) gain electrons and are reduced to Cu metal. This is also a displacement reaction.",
       "diagram_required": false,
       "tags": ["displacement", "oxidation", "reduction"],
       "language": "en",
       "is_ncert": false
+    },
+    {
+      "question_text": "Which of the following reactions requires a diagram showing the movement of electrons?",
+      "question_type": "MCQ",
+      "marks": 1,
+      "difficulty": "easy",
+      "bloom_level": "remember",
+      "concept_uuids": ["SCI-1042-CH3C"],
+      "options": [
+        { "key": "A", "text": "Physical dissolution" },
+        { "key": "B", "text": "Combination reaction" },
+        { "key": "C", "text": "Redox reaction" },
+        { "key": "D", "text": "Precipitation reaction" }
+      ],
+      "correct_option": "C",
+      "explanation": "Redox reactions involve the transfer of electrons between species. A diagram showing electron movement clearly illustrates oxidation (electron loss) and reduction (electron gain).",
+      "diagram_required": true,
+      "diagram_description": "A clean scientific diagram showing electron transfer in a redox reaction. Left side: Zn atom losing 2 electrons (labelled 'Oxidation'). Right side: Cu²⁺ ion gaining 2 electrons (labelled 'Reduction'). Arrows showing 2e⁻ moving from Zn to Cu²⁺. White background, 800x500 pixels, clear labels.",
+      "tags": ["redox", "electron transfer"],
+      "language": "en",
+      "is_ncert": false
     }
-  ],
-  "metadata": {
-    "subject": "Science",
-    "chapter": "Chemical Reactions and Equations",
-    "generated_at": "2024-01-15T10:30:00Z",
-    "model": "claude-sonnet-5",
-    "prompt_version": "v3"
-  }
+  ]
 }

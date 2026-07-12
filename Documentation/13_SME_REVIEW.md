@@ -2,17 +2,18 @@
 
 ## Overview
 
-The SME (Subject Matter Expert) Review module is the quality gate before any question can be exported or synced to the Production DB. Only approved questions are included in exports.
+SME Review is the quality gate before any question can be exported or synced to the Production DB. Only approved questions are included in exports. The SME has exactly two actions per question: **Approve** or **Reject**.
 
 ## Review States Per Question
 
 ```
 under_review → approved
 under_review → rejected
-under_review → revision_requested
 ```
 
-A rejected or revision_requested question goes back to the Intern for correction and re-import.
+Rejected questions go back to interns for regeneration or correction and re-import.
+
+There is no "revision requested" state — a question is either good enough (approved) or it is not (rejected). The notes field on rejection explains what the intern must fix.
 
 ---
 
@@ -20,103 +21,81 @@ A rejected or revision_requested question goes back to the Intern for correction
 
 ### 1. Batch Assigned to SME
 
-Admin clicks "Send to SME Review" → selects SME → batch status = `reviewing`.
+Admin clicks "Send to SME Review" → selects SME from dropdown.
+- All validated questions in batch set to status `under_review`
+- Batch status stays at `diagram_complete` during the review period
 
-SME sees the batch in their **Review Queue** on their dashboard.
+SME sees the batch in their **Review Queue** on the dashboard.
 
 ### 2. SME Opens Batch
 
-- Sees paginated list of questions (20 per page)
-- Filter bar: All | Pending | Approved | Rejected | Revision Requested
+- Paginated list of questions (20 per page)
+- Filter bar: All | Pending | Approved | Rejected
 - Progress bar: `14/20 reviewed`
-- Each question shows:
-  - Rendered question (KaTeX + diagram if present)
-  - Rendered options (for MCQ)
-  - Rendered explanation (collapsed, expandable)
-  - Difficulty | Bloom Level | Marks | Concept UUID
-  - Current review status badge
+- Each question shows rendered view (KaTeX + diagram if present)
 
-### 3. SME Reviews a Question
+### 3. SME Reviews Each Question
 
-For each question, the SME sees three action buttons:
-
-**Approve**
+**[Approve]**
 ```
 Click → sme_reviews row created:
   { question_id, reviewed_by, decision: 'approved', notes: null }
-question.status = 'approved'
+  question.status = 'approved'
 ```
 
-**Reject**
+**[Reject]**
 ```
-Click → modal opens (notes field is REQUIRED)
+Click → Modal opens
+  Notes field: REQUIRED (cannot submit without explanation)
+  Intern will see this note to understand what to fix.
 Submit → sme_reviews row created:
-  { question_id, reviewed_by, decision: 'rejected', notes: "..." }
-question.status = 'rejected'
+  { question_id, reviewed_by, decision: 'rejected', notes: "the reason..." }
+  question.status = 'rejected'
 ```
 
-**Request Revision**
-```
-Click → modal opens (notes field is REQUIRED)
-Submit → sme_reviews row created:
-  { question_id, reviewed_by, decision: 'revision_requested', notes: "..." }
-question.status = 'rejected'   ← same as rejected for pipeline purposes
-```
+### 4. Batch Notes (End of Session)
 
-The difference between `rejected` and `revision_requested`:
-- `rejected` → content is wrong/inappropriate; discard this question
-- `revision_requested` → minor fix needed; Intern should correct and resubmit
-
-### 4. Batch Completion Check
-
-After every review action, system checks:
-- If ALL questions = `approved` → batch.status = `approved`
-- If any questions = `rejected` or `revision_requested` → batch stays at `reviewing`
-
-Admin is notified when batch.status changes to `approved`.
-
----
-
-## Revision Loop
+After reviewing all questions, the SME adds optional batch-level notes:
 
 ```
-SME requests revision
-        ↓
-Intern sees rejected questions in batch
-        ↓
-Intern edits JSON locally
-        ↓
-Intern re-imports ONLY the rejected questions (replace mode)
-        ↓
-Validation runs again
-        ↓
-Questions go back to status: under_review
-        ↓
-SME re-reviews those questions only
+Example Batch Notes:
+"Question 5: Improve distractors — options B and C are too similar.
+ Question 8: Diagram is unclear, needs to show labels more prominently.
+ Question 12: Minor grammar issue in explanation."
 ```
 
----
-
-## Batch-Level Notes
-
-SME can add a note at the batch level (not per-question):
-- Stored in `batches.notes` (appended, not replaced)
+These notes are appended to `batches.notes`. They are:
 - Visible to Admin and Super Admin
-- Not visible to Intern
+- NOT visible to Intern (intern only sees their rejected question's per-question note)
+
+SME clicks **"Submit Review"** when done.
+
+### 5. Batch Completion Check
+
+System checks after every review action:
+- ALL questions `approved` → `batch.status = 'sme_review_complete'`
+- Any questions `rejected` → batch stays at `diagram_complete`; Admin is notified
 
 ---
 
-## Review History
+## Rejection Loop
 
-Every review action creates a row in `sme_reviews`. A question can have multiple review rows if it goes through multiple revision cycles. The history is visible to:
-- SME (their own reviews)
-- Admin (all reviews for batches they manage)
-- Super Admin (all reviews)
-
-History view shows:
 ```
-[Revision 1] Rejected by Dr. Sharma — "Explanation is incorrect. The answer should be B not C."
-[Revision 2] Approved by Dr. Sharma — ""
+SME rejects question(s)
+        ↓
+Intern sees rejected questions listed in batch
+        ↓
+Intern reads rejection note from SME
+        ↓
+Intern either:
+  a. Fixes the question locally and re-imports (for editable content issues)
+  b. Generates a replacement question via Qwen and re-imports
+        ↓
+Platform re-validates + re-injects metadata
+        ↓
+Question status → 'under_review' again
+        ↓
+SME re-reviews only the resubmitted questions
 ```
 
 ---
@@ -125,15 +104,43 @@ History view shows:
 
 | Section | Content |
 |---|---|
-| Review Queue | Batches in `reviewing` status assigned to this SME |
-| Completed | Batches this SME has fully reviewed (all questions) |
-| My Stats | Approved: 142 | Rejected: 18 | Pending: 7 (this month) |
+| Review Queue | Batches at `diagram_complete` status assigned to this SME |
+| Completed | Batches this SME has fully reviewed (all approved) |
+| My Stats | Approved: 142 | Rejected: 18 | Pending Review: 7 (this month) |
 
 ---
 
-## Permissions Reminder
+## What SME Sees Per Question
 
-- SME cannot edit question content — read + review only
-- SME cannot see other SMEs' review notes on the same question
-- SME cannot trigger export
-- SME can view the prompt used for a batch (read-only) but cannot edit prompts
+The Rendering Engine is used — SME never sees raw JSON.
+
+```
+[Q5]  MCQ · Medium · 1 Mark
+─────────────────────────────────────────────
+Which of the following is an example of a redox reaction?
+
+[Diagram here if present]
+
+A. NaCl dissolving in water
+B. Rusting of iron in the presence of oxygen and moisture
+C. Melting of ice
+D. Evaporation of water
+
+[Explanation ▼ expand]
+Rusting involves iron (Fe) being oxidised to Fe₂O₃...
+
+Concept: SCI-1042-CH3A | Bloom: Understand | NCERT p.12
+
+[ Approve ]   [ Reject ]
+```
+
+---
+
+## SME Restrictions Reminder
+
+- Cannot edit question content
+- Cannot see other SMEs' reviews on the same question
+- Cannot trigger exports
+- Cannot browse Prompt Library
+- Cannot manage users
+- Batch notes are added once at end — not inline per question

@@ -32,19 +32,19 @@ model User {
 }
 
 model Board {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String    @unique
-  createdAt DateTime  @default(now()) @map("created_at")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
   classes   Class[]
 
   @@map("boards")
 }
 
 model Class {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  boardId   String    @map("board_id") @db.Uuid
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  boardId   String   @map("board_id") @db.Uuid
   name      String
-  createdAt DateTime  @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   board    Board     @relation(fields: [boardId], references: [id])
   subjects Subject[]
@@ -92,7 +92,8 @@ model Concept {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   chapterId String   @map("chapter_id") @db.Uuid
   name      String
-  uuid      String   @unique
+  uuid      String   @unique  // human-readable: SCI-1042-CH3A
+  shortNote String?  @map("short_note")  // 1-2 sentence summary shown to intern in prompt view
   createdAt DateTime @default(now()) @map("created_at")
 
   chapter   Chapter    @relation(fields: [chapterId], references: [id])
@@ -105,24 +106,26 @@ model Concept {
 
 model QuestionType {
   id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code      String     @unique // MCQ | FIB | TF | MATCH | SHORT | LONG
+  code      String     @unique  // MCQ | FIB | TF | MATCH | SHORT | LONG
   label     String
   isActive  Boolean    @default(true) @map("is_active")
   createdAt DateTime   @default(now()) @map("created_at")
+
+  batches   Batch[]
   questions Question[]
 
   @@map("question_types")
 }
 
 model Prompt {
-  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String
-  subjectId   String?         @map("subject_id") @db.Uuid
+  subjectId   String?  @map("subject_id") @db.Uuid  // NULL = global prompt
   description String?
-  createdById String          @map("created_by") @db.Uuid
-  isActive    Boolean         @default(true) @map("is_active")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  createdById String   @map("created_by") @db.Uuid
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   subject   Subject?        @relation(fields: [subjectId], references: [id])
   createdBy User            @relation(fields: [createdById], references: [id])
@@ -132,15 +135,15 @@ model Prompt {
 }
 
 model PromptVersion {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  promptId   String   @map("prompt_id") @db.Uuid
-  versionNo  Int      @map("version_no")
-  content    String
-  variables  Json     @default("[]")
-  notes      String?
-  status     String   @default("draft") // draft | published | archived
-  createdById String  @map("created_by") @db.Uuid
-  createdAt  DateTime @default(now()) @map("created_at")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  promptId    String   @map("prompt_id") @db.Uuid
+  versionNo   Int      @map("version_no")
+  content     String
+  variables   Json     @default("[]")  // ["{{subject}}", "{{chapter}}", ...]
+  status      String   @default("draft")  // draft | published | archived
+  notes       String?
+  createdById String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
 
   prompt          Prompt           @relation(fields: [promptId], references: [id])
   createdBy       User             @relation(fields: [createdById], references: [id])
@@ -177,15 +180,20 @@ model SchemaVersion {
 }
 
 model SubjectProfile {
-  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  subjectId          String   @unique @map("subject_id") @db.Uuid
-  promptVersionId    String   @map("prompt_version_id") @db.Uuid
-  schemaVersionId    String   @map("schema_version_id") @db.Uuid
-  maxConcepts        Int      @default(10) @map("max_concepts")
-  generationProvider String   @default("claude") @map("generation_provider")
-  fieldRegistryJson  Json     @map("field_registry_json")
-  createdById        String   @map("created_by") @db.Uuid
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectId             String   @unique @map("subject_id") @db.Uuid
+  promptVersionId       String   @map("prompt_version_id") @db.Uuid
+  schemaVersionId       String   @map("schema_version_id") @db.Uuid
+  maxConcepts           Int      @default(0) @map("max_concepts")  // 0 = concept mapping disabled
+  generationProvider    String   @default("manual_qwen") @map("generation_provider")
+  fieldRegistryJson     Json     @map("field_registry_json")  // frozen snapshot at save time
+  // Feature flags — control which fields are active per subject
+  diagramEnabled        Boolean  @default(false) @map("diagram_enabled")
+  passageEnabled        Boolean  @default(false) @map("passage_enabled")
+  conceptEnabled        Boolean  @default(false) @map("concept_enabled")  // false when maxConcepts = 0
+  solutionStepsEnabled  Boolean  @default(false) @map("solution_steps_enabled")
+  createdById           String   @map("created_by") @db.Uuid
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   subject       Subject       @relation(fields: [subjectId], references: [id])
   promptVersion PromptVersion @relation(fields: [promptVersionId], references: [id])
@@ -200,10 +208,9 @@ model FieldRegistry {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fieldName       String   @unique @map("field_name")
   label           String
-  mode            String   // required | optional | conditional
-  dependency      String?
-  dependencyValue String?  @map("dependency_value")
-  dataType        String   @map("data_type")
+  mode            String   // required | optional | disabled | auto
+  // 'auto' = system-injected during Metadata Injection; must not be in imported JSON
+  dataType        String   @map("data_type")  // string | number | boolean | array | object
   validationRule  Json?    @map("validation_rule")
   renderingRule   Json?    @map("rendering_rule")
   exportRule      Json?    @map("export_rule")
@@ -216,25 +223,31 @@ model FieldRegistry {
 }
 
 model Batch {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String
-  subjectId  String   @map("subject_id") @db.Uuid
-  chapterId  String?  @map("chapter_id") @db.Uuid
-  profileId  String   @map("profile_id") @db.Uuid
-  status     String   @default("created")
-  createdById String  @map("created_by") @db.Uuid
-  assignedTo String?  @map("assigned_to") @db.Uuid
-  notes      String?
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  subjectId       String   @map("subject_id") @db.Uuid
+  chapterId       String?  @map("chapter_id") @db.Uuid
+  questionTypeId  String   @map("question_type_id") @db.Uuid
+  difficulty      String   // easy | medium | hard
+  questionCount   Int      @default(20) @map("question_count")
+  profileId       String   @map("profile_id") @db.Uuid
+  status          String   @default("created")
+  // created | generation_complete | import_complete | validation_complete
+  // | diagram_complete | sme_review_complete | export_complete | synced
+  createdById     String   @map("created_by") @db.Uuid
+  assignedTo      String?  @map("assigned_to") @db.Uuid
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
-  subject    Subject        @relation(fields: [subjectId], references: [id])
-  chapter    Chapter?       @relation(fields: [chapterId], references: [id])
-  profile    SubjectProfile @relation(fields: [profileId], references: [id])
-  createdBy  User           @relation("BatchCreatedBy", fields: [createdById], references: [id])
-  assignee   User?          @relation("BatchAssignedTo", fields: [assignedTo], references: [id])
-  questions  Question[]
-  exports    Export[]
+  subject      Subject        @relation(fields: [subjectId], references: [id])
+  chapter      Chapter?       @relation(fields: [chapterId], references: [id])
+  questionType QuestionType   @relation(fields: [questionTypeId], references: [id])
+  profile      SubjectProfile @relation(fields: [profileId], references: [id])
+  createdBy    User           @relation("BatchCreatedBy", fields: [createdById], references: [id])
+  assignee     User?          @relation("BatchAssignedTo", fields: [assignedTo], references: [id])
+  questions    Question[]
+  exports      Export[]
 
   @@index([subjectId])
   @@index([status])
@@ -243,17 +256,20 @@ model Batch {
 }
 
 model Question {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  batchId        String   @map("batch_id") @db.Uuid
-  conceptId      String?  @map("concept_id") @db.Uuid
-  conceptUuid    String?  @map("concept_uuid")
-  questionTypeId String   @map("question_type_id") @db.Uuid
-  content        Json
-  status         String   @default("imported")
-  version        Int      @default(1)
-  importErrors   Json     @default("[]") @map("import_errors")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  batchId          String   @map("batch_id") @db.Uuid
+  conceptId        String?  @map("concept_id") @db.Uuid   // primary concept FK (optional)
+  conceptUuid      String?  @map("concept_uuid")           // denormalised for fast export
+  questionTypeId   String   @map("question_type_id") @db.Uuid
+  content          Json     // validated question JSON from import
+  injectedMetadata Json     @default("{}") @map("injected_metadata")  // Phase 7 auto-injection
+  status           String   @default("staged")
+  // staged | validation_failed | validated | diagram_pending | diagram_done
+  // | under_review | approved | rejected
+  version          Int      @default(1)
+  importErrors     Json     @default("[]") @map("import_errors")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   batch        Batch             @relation(fields: [batchId], references: [id])
   concept      Concept?          @relation(fields: [conceptId], references: [id])
@@ -287,9 +303,8 @@ model QuestionVersion {
 model DiagramJob {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   questionId   String   @map("question_id") @db.Uuid
-  description  String
-  status       String   @default("pending") // pending | processing | done | failed
-  attempts     Int      @default(0)
+  description  String   // diagram_description from question at time of job creation
+  status       String   @default("pending")  // pending | uploaded | failed
   errorMessage String?  @map("error_message")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -303,13 +318,14 @@ model DiagramJob {
 }
 
 model DiagramAsset {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  diagramJobId String   @map("diagram_job_id") @db.Uuid
-  r2Key        String   @map("r2_key")
-  publicUrl    String   @map("public_url")
-  version      Int      @default(1)
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  diagramJobId        String   @map("diagram_job_id") @db.Uuid
+  r2Key               String   @map("r2_key")   // diagrams/{subject_code}/{batch_id}/{question_id}/v{n}.png
+  publicUrl           String   @map("public_url")
+  version             Int      @default(1)
+  originalDescription String   @map("original_description")  // description at upload time
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
 
   diagramJob DiagramJob @relation(fields: [diagramJobId], references: [id])
 
@@ -318,12 +334,12 @@ model DiagramAsset {
 }
 
 model SmeReview {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  questionId  String   @map("question_id") @db.Uuid
-  reviewedById String  @map("reviewed_by") @db.Uuid
-  decision    String   // approved | rejected | revision_requested
-  notes       String?
-  createdAt   DateTime @default(now()) @map("created_at")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionId   String   @map("question_id") @db.Uuid
+  reviewedById String   @map("reviewed_by") @db.Uuid
+  decision     String   // approved | rejected   (no revision_requested)
+  notes        String?  // required when decision = 'rejected'
+  createdAt    DateTime @default(now()) @map("created_at")
 
   question   Question @relation(fields: [questionId], references: [id])
   reviewedBy User     @relation(fields: [reviewedById], references: [id])
@@ -334,16 +350,16 @@ model SmeReview {
 }
 
 model Export {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name      String
-  batchId   String   @map("batch_id") @db.Uuid
-  format    String   // json | pdf | excel
-  r2Key     String?  @map("r2_key")
-  publicUrl String?  @map("public_url")
-  status    String   @default("pending") // pending | processing | done | failed
-  createdById String @map("created_by") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  batchId     String   @map("batch_id") @db.Uuid
+  format      String   // json | excel | pdf
+  r2Key       String?  @map("r2_key")
+  publicUrl   String?  @map("public_url")
+  status      String   @default("pending")  // pending | processing | done | failed
+  createdById String   @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   batch     Batch @relation(fields: [batchId], references: [id])
   createdBy User  @relation(fields: [createdById], references: [id])

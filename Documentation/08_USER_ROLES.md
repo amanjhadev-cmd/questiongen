@@ -23,8 +23,9 @@ No other roles exist in V1.
 - Configure Subject Profiles
 - Manage Prompt Library (all CRUD + publish/archive)
 - Manage Schema versions
-- Create and manage boards, classes, subjects, chapters, concepts
-- Trigger exports and n8n syncs
+- Create and manage boards, classes, subjects, chapters, concepts (including short_note)
+- Create and assign batches
+- Trigger exports and n8n production sync
 - Access all batches and questions across all subjects
 - View audit logs
 
@@ -39,17 +40,15 @@ No other roles exist in V1.
 
 **Responsibilities:**
 - Create and assign batches to interns
-- View and manage prompts (cannot publish/archive — Super Admin only)
-- Trigger import and validation
-- Trigger diagram pipeline
-- View SME review results
-- Trigger exports
-- Trigger n8n sync
+- View and edit draft prompts (cannot publish/archive — Super Admin only)
+- Trigger export and n8n production sync
+- Move batches through status pipeline (send to SME, trigger export, trigger sync)
 - Manage intern accounts
 
 **Restrictions:**
 - Cannot create/edit Field Registry
 - Cannot create/edit Subject Profiles
+- Cannot publish/archive prompt versions
 - Cannot create/edit Schema versions
 - Cannot create/edit boards, classes, subjects, chapters (read-only)
 - Cannot manage SME accounts (Super Admin only)
@@ -61,9 +60,9 @@ No other roles exist in V1.
 **Who:** Teacher, academic reviewer, domain expert.
 
 **Responsibilities:**
-- Review assigned questions in batches
-- Approve / Reject / Request Revision per question
-- Add batch-level notes
+- Review assigned batches — see fully rendered questions
+- **Approve** or **Reject** each question (two options only — no revision request)
+- Add batch-level notes at end of review session
 - View question history and previous versions
 
 **Restrictions:**
@@ -71,9 +70,10 @@ No other roles exist in V1.
 - Cannot import questions
 - Cannot trigger diagram pipeline
 - Cannot export
-- Cannot access Prompt Library (read-only view of prompt used for a batch)
+- Cannot access Prompt Library (can view prompt used for a specific batch if shown by Admin)
 - Cannot manage any users
-- Can only see batches assigned to them or in `reviewing` status
+- Can only see batches assigned to them or in `sme_review_complete` status
+- No per-question note-taking during review — only batch-level notes at end
 
 ---
 
@@ -82,18 +82,19 @@ No other roles exist in V1.
 **Who:** Content writer, question generator.
 
 **Responsibilities:**
-- Create batches (subject and chapter selected from dropdown)
-- Generate questions via n8n integration
+- Create batches (selects board, class, subject, chapter, question type, difficulty, question count)
+- View the approved prompt + concept list for their batch
+- Copy prompt (+ concept list) and generate questions in Qwen Chat (external)
 - Import raw JSON into platform
-- View validation results
-- Monitor diagram pipeline status
-- Resubmit rejected questions for review
+- View validation results and fix failed questions
+- Upload diagram images for questions requiring diagrams
+- Monitor batch status progress
 
 **Restrictions:**
-- Cannot access Prompt Library (no view)
-- Cannot create/edit any master data
+- Cannot edit Prompt Library (no access to Prompt Library nav)
+- Cannot create/edit any master data (boards, classes, subjects, chapters, concepts, field registry, subject profiles, schemas)
 - Cannot trigger exports
-- Cannot trigger n8n sync
+- Cannot trigger n8n production sync
 - Cannot approve/reject questions (SME role only)
 - Can only see their own batches
 
@@ -106,16 +107,17 @@ No other roles exist in V1.
 | Create users | ✔ | Intern only | ✖ | ✖ |
 | Manage Field Registry | ✔ | ✖ | ✖ | ✖ |
 | Manage Subject Profiles | ✔ | ✖ | ✖ | ✖ |
-| Manage Prompt Library | ✔ | View + Edit draft | Read | ✖ |
+| Manage Prompt Library | ✔ | Edit draft | ✖ | ✖ |
 | Publish/archive prompts | ✔ | ✖ | ✖ | ✖ |
+| View prompt for own batch | ✔ | ✔ | Read (assigned batch) | ✔ (own batch) |
 | Manage schemas | ✔ | ✖ | ✖ | ✖ |
-| Create boards/classes/subjects | ✔ | ✖ | ✖ | ✖ |
+| Create master data | ✔ | ✖ | ✖ | ✖ |
 | Create batches | ✔ | ✔ | ✖ | ✔ |
 | Import questions | ✔ | ✔ | ✖ | ✔ |
-| Trigger diagram pipeline | ✔ | ✔ | ✖ | ✖ |
-| Review questions | ✔ | ✔ | ✔ | ✖ |
+| Upload diagram images | ✔ | ✔ | ✖ | ✔ |
+| Approve/Reject questions | ✔ | ✔ | ✔ | ✖ |
 | Export | ✔ | ✔ | ✖ | ✖ |
-| n8n sync | ✔ | ✔ | ✖ | ✖ |
+| n8n production sync | ✔ | ✔ | ✖ | ✖ |
 | View audit logs | ✔ | ✔ | ✖ | ✖ |
 
 ---

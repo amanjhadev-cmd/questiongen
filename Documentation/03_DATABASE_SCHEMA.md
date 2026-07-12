@@ -23,7 +23,6 @@ diagram_jobs
 diagram_assets
 sme_reviews
 exports
-batch_exports
 ```
 
 ---
@@ -106,12 +105,15 @@ INDEX: chapters_subject_idx ON chapters(subject_id)
 id           UUID PRIMARY KEY DEFAULT gen_random_uuid()
 chapter_id   UUID NOT NULL REFERENCES chapters(id)
 name         TEXT NOT NULL
-uuid         TEXT UNIQUE NOT NULL   -- human-readable concept UUID for exports
+uuid         TEXT UNIQUE NOT NULL   -- human-readable concept UUID for exports and prompt display
+short_note   TEXT                   -- 1-2 sentence summary shown to intern in prompt view
 created_at   TIMESTAMPTZ DEFAULT now()
 
 INDEX: concepts_chapter_idx ON concepts(chapter_id)
 INDEX: concepts_uuid_idx ON concepts(uuid)
 ```
+
+`short_note` is displayed alongside the concept UUID in the Prompt Library page so interns can copy it into the prompt for Qwen.
 
 ---
 
@@ -150,6 +152,7 @@ prompt_id    UUID    NOT NULL REFERENCES prompts(id)
 version_no   INTEGER NOT NULL
 content      TEXT    NOT NULL
 variables    JSONB   DEFAULT '[]'   -- ["{{subject}}", "{{chapter}}", "{{count}}"]
+status       TEXT    NOT NULL DEFAULT 'draft'  -- 'draft' | 'published' | 'archived'
 notes        TEXT
 created_by   UUID    NOT NULL REFERENCES users(id)
 created_at   TIMESTAMPTZ DEFAULT now()
@@ -192,9 +195,14 @@ id                  UUID    PRIMARY KEY DEFAULT gen_random_uuid()
 subject_id          UUID    UNIQUE NOT NULL REFERENCES subjects(id)
 prompt_version_id   UUID    NOT NULL REFERENCES prompt_versions(id)
 schema_version_id   UUID    NOT NULL REFERENCES schema_versions(id)
-max_concepts        INTEGER DEFAULT 10
-generation_provider TEXT    DEFAULT 'claude'   -- 'claude' | 'gpt-4o'
-field_registry_json JSONB   NOT NULL            -- snapshot of field config at profile save
+max_concepts        INTEGER DEFAULT 0       -- 0 = concept mapping disabled
+generation_provider TEXT    DEFAULT 'manual_qwen'  -- 'manual_qwen' | 'manual_gpt' | etc.
+field_registry_json JSONB   NOT NULL        -- frozen snapshot of field config at profile save
+-- Feature flags (all configurable per subject)
+diagram_enabled     BOOLEAN DEFAULT false
+passage_enabled     BOOLEAN DEFAULT false
+concept_enabled     BOOLEAN DEFAULT false   -- false when max_concepts = 0
+solution_steps_enabled BOOLEAN DEFAULT false
 created_by          UUID    NOT NULL REFERENCES users(id)
 updated_at          TIMESTAMPTZ DEFAULT now()
 ```
@@ -207,42 +215,64 @@ updated_at          TIMESTAMPTZ DEFAULT now()
 id               UUID    PRIMARY KEY DEFAULT gen_random_uuid()
 field_name       TEXT    UNIQUE NOT NULL
 label            TEXT    NOT NULL
-mode             TEXT    NOT NULL    -- 'required' | 'optional' | 'conditional'
-dependency       TEXT                -- field_name of the field this depends on
-dependency_value TEXT                -- value that triggers this field
+mode             TEXT    NOT NULL    -- 'required' | 'optional' | 'disabled' | 'auto'
+                                     -- 'auto' = system-injected, never from LLM
 data_type        TEXT    NOT NULL    -- 'string' | 'number' | 'boolean' | 'array' | 'object'
 validation_rule  JSONB               -- {min_length, max_length, pattern, enum, ...}
 rendering_rule   JSONB               -- {type: 'katex'|'html'|'plain', component: ...}
-export_rule      JSONB               -- {include_in_json: bool, include_in_pdf: bool, ...}
+export_rule      JSONB               -- {include_in_json, include_in_pdf, include_in_excel, ...}
 sort_order       INTEGER DEFAULT 0
 is_active        BOOLEAN DEFAULT true
 created_at       TIMESTAMPTZ DEFAULT now()
 updated_at       TIMESTAMPTZ DEFAULT now()
 ```
 
+**Modes:**
+- `required` — must be present in imported JSON; blocks import if missing
+- `optional` — may be present; validated if present
+- `disabled` — field is turned off for this subject (enforced by subject profile flag); rejected if present
+- `auto` — injected by the system during Metadata Injection; must NOT be in imported JSON
+
 ---
 
 ## batches
 
 ```sql
-id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
-name            TEXT NOT NULL
-subject_id      UUID NOT NULL REFERENCES subjects(id)
-chapter_id      UUID REFERENCES chapters(id)
-profile_id      UUID NOT NULL REFERENCES subject_profiles(id)
-status          TEXT NOT NULL DEFAULT 'created'
-                -- 'created' | 'generating' | 'importing' | 'validating'
-                -- | 'diagramming' | 'reviewing' | 'approved' | 'exported'
-created_by      UUID NOT NULL REFERENCES users(id)
-assigned_to     UUID REFERENCES users(id)
-notes           TEXT
-created_at      TIMESTAMPTZ DEFAULT now()
-updated_at      TIMESTAMPTZ DEFAULT now()
+id               UUID PRIMARY KEY DEFAULT gen_random_uuid()
+name             TEXT NOT NULL
+subject_id       UUID NOT NULL REFERENCES subjects(id)
+chapter_id       UUID REFERENCES chapters(id)
+question_type_id UUID NOT NULL REFERENCES question_types(id)
+difficulty       TEXT NOT NULL              -- 'easy' | 'medium' | 'hard'
+question_count   INTEGER NOT NULL DEFAULT 20
+profile_id       UUID NOT NULL REFERENCES subject_profiles(id)
+status           TEXT NOT NULL DEFAULT 'created'
+                 -- 'created'
+                 -- 'generation_complete'
+                 -- 'import_complete'
+                 -- 'validation_complete'
+                 -- 'diagram_complete'
+                 -- 'sme_review_complete'
+                 -- 'export_complete'
+                 -- 'synced'
+created_by       UUID NOT NULL REFERENCES users(id)
+assigned_to      UUID REFERENCES users(id)
+notes            TEXT
+created_at       TIMESTAMPTZ DEFAULT now()
+updated_at       TIMESTAMPTZ DEFAULT now()
 
 INDEX: batches_subject_idx ON batches(subject_id)
 INDEX: batches_status_idx ON batches(status)
 INDEX: batches_created_by_idx ON batches(created_by)
 ```
+
+**Status flow:**
+```
+created → generation_complete → import_complete → validation_complete
+       → diagram_complete → sme_review_complete → export_complete → synced
+```
+
+Batch can move backwards (e.g. from `sme_review_complete` back to `import_complete` if SME rejects questions and intern re-imports).
 
 ---
 
@@ -254,10 +284,17 @@ batch_id          UUID    NOT NULL REFERENCES batches(id)
 concept_id        UUID    REFERENCES concepts(id)
 concept_uuid      TEXT                          -- denormalised for fast export
 question_type_id  UUID    NOT NULL REFERENCES question_types(id)
-content           JSONB   NOT NULL              -- full question JSON (validated)
-status            TEXT    NOT NULL DEFAULT 'imported'
-                  -- 'imported' | 'diagram_pending' | 'diagram_done'
-                  -- | 'under_review' | 'approved' | 'rejected'
+content           JSONB   NOT NULL              -- validated question JSON (from import)
+injected_metadata JSONB   DEFAULT '{}'          -- system-injected metadata (Phase 7)
+status            TEXT    NOT NULL DEFAULT 'staged'
+                  -- 'staged'           (in staging area, before validation)
+                  -- 'validation_failed'
+                  -- 'validated'        (passed all checks)
+                  -- 'diagram_pending'  (needs diagram, not yet uploaded)
+                  -- 'diagram_done'
+                  -- 'under_review'
+                  -- 'approved'
+                  -- 'rejected'
 version           INTEGER NOT NULL DEFAULT 1
 import_errors     JSONB   DEFAULT '[]'
 created_at        TIMESTAMPTZ DEFAULT now()
@@ -291,10 +328,9 @@ UNIQUE: (question_id, version_no)
 ```sql
 id             UUID PRIMARY KEY DEFAULT gen_random_uuid()
 question_id    UUID NOT NULL REFERENCES questions(id)
-description    TEXT NOT NULL
+description    TEXT NOT NULL             -- diagram_description from question content
 status         TEXT NOT NULL DEFAULT 'pending'
-               -- 'pending' | 'processing' | 'done' | 'failed'
-attempts       INTEGER DEFAULT 0
+               -- 'pending' | 'uploaded' | 'failed'
 error_message  TEXT
 created_at     TIMESTAMPTZ DEFAULT now()
 updated_at     TIMESTAMPTZ DEFAULT now()
@@ -303,18 +339,21 @@ INDEX: diagram_jobs_status_idx ON diagram_jobs(status)
 INDEX: diagram_jobs_question_idx ON diagram_jobs(question_id)
 ```
 
+**Note:** There is no `processing` status — generation happens externally. Status goes `pending → uploaded` when intern uploads the image.
+
 ---
 
 ## diagram_assets
 
 ```sql
-id            UUID PRIMARY KEY DEFAULT gen_random_uuid()
-diagram_job_id UUID NOT NULL REFERENCES diagram_jobs(id)
-r2_key        TEXT NOT NULL    -- e.g. diagrams/MATH10/batch-uuid/q-uuid/v1.png
-public_url    TEXT NOT NULL
-version       INTEGER NOT NULL DEFAULT 1
-is_active     BOOLEAN DEFAULT true
-created_at    TIMESTAMPTZ DEFAULT now()
+id                  UUID PRIMARY KEY DEFAULT gen_random_uuid()
+diagram_job_id      UUID NOT NULL REFERENCES diagram_jobs(id)
+r2_key              TEXT NOT NULL    -- e.g. diagrams/SCI10/batch-uuid/q-uuid/v1.png
+public_url          TEXT NOT NULL
+version             INTEGER NOT NULL DEFAULT 1
+original_description TEXT NOT NULL   -- stored for audit (description at time of upload)
+is_active           BOOLEAN DEFAULT true
+created_at          TIMESTAMPTZ DEFAULT now()
 
 INDEX: diagram_assets_job_idx ON diagram_assets(diagram_job_id)
 ```
@@ -327,13 +366,15 @@ INDEX: diagram_assets_job_idx ON diagram_assets(diagram_job_id)
 id           UUID PRIMARY KEY DEFAULT gen_random_uuid()
 question_id  UUID NOT NULL REFERENCES questions(id)
 reviewed_by  UUID NOT NULL REFERENCES users(id)
-decision     TEXT NOT NULL    -- 'approved' | 'rejected' | 'revision_requested'
-notes        TEXT
+decision     TEXT NOT NULL    -- 'approved' | 'rejected'
+notes        TEXT             -- required when decision = 'rejected'
 created_at   TIMESTAMPTZ DEFAULT now()
 
 INDEX: sme_reviews_question_idx ON sme_reviews(question_id)
 INDEX: sme_reviews_reviewer_idx ON sme_reviews(reviewed_by)
 ```
+
+SME batch notes are stored in `batches.notes` (appended by SME at end of review session).
 
 ---
 
@@ -343,7 +384,7 @@ INDEX: sme_reviews_reviewer_idx ON sme_reviews(reviewed_by)
 id           UUID PRIMARY KEY DEFAULT gen_random_uuid()
 name         TEXT NOT NULL
 batch_id     UUID NOT NULL REFERENCES batches(id)
-format       TEXT NOT NULL    -- 'json' | 'pdf' | 'excel'
+format       TEXT NOT NULL    -- 'json' | 'excel' | 'pdf'
 r2_key       TEXT
 public_url   TEXT
 status       TEXT NOT NULL DEFAULT 'pending'

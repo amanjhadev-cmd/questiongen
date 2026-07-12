@@ -4,7 +4,6 @@
 - ✔ = Full access
 - R = Read-only
 - O = Own records only
-- D = Draft only
 - ✖ = No access
 
 ---
@@ -28,9 +27,8 @@
 | Action | Super Admin | Admin | SME | Intern |
 |---|---|---|---|---|
 | View | ✔ | ✔ | ✔ | ✔ |
-| Create | ✔ | ✖ | ✖ | ✖ |
-| Edit | ✔ | ✖ | ✖ | ✖ |
-| Delete | ✔ | ✖ | ✖ | ✖ |
+| Create / Edit / Delete | ✔ | ✖ | ✖ | ✖ |
+| Edit concept short_note | ✔ | ✖ | ✖ | ✖ |
 
 ---
 
@@ -40,7 +38,7 @@
 |---|---|---|---|---|
 | View | ✔ | ✔ | ✖ | ✖ |
 | Create / Edit / Delete | ✔ | ✖ | ✖ | ✖ |
-| Toggle active | ✔ | ✖ | ✖ | ✖ |
+| Toggle mode (required/optional/disabled/auto) | ✔ | ✖ | ✖ | ✖ |
 
 ---
 
@@ -57,8 +55,8 @@
 
 | Action | Super Admin | Admin | SME | Intern |
 |---|---|---|---|---|
-| View all prompts | ✔ | ✔ | R | ✖ |
-| View prompt content | ✔ | ✔ | R | ✖ |
+| Browse Prompt Library | ✔ | ✔ | ✖ | ✖ |
+| View prompt for assigned batch | ✔ | ✔ | R | R (own batch) |
 | Create prompt | ✔ | ✔ | ✖ | ✖ |
 | Edit draft version | ✔ | ✔ | ✖ | ✖ |
 | Publish version | ✔ | ✖ | ✖ | ✖ |
@@ -84,6 +82,7 @@
 | Create batch | ✔ | ✔ | ✖ | ✔ |
 | Edit batch metadata | ✔ | ✔ | ✖ | Own only |
 | Assign batch to intern | ✔ | ✔ | ✖ | ✖ |
+| Mark generation complete | ✔ | ✔ | ✖ | ✔ (own) |
 | Send batch to SME review | ✔ | ✔ | ✖ | ✖ |
 | Delete batch | ✔ | ✖ | ✖ | ✖ |
 
@@ -95,7 +94,7 @@
 |---|---|---|---|---|
 | View questions | ✔ | ✔ | Assigned batches | Own batches |
 | Import questions | ✔ | ✔ | ✖ | ✔ (own batch) |
-| Edit question | ✔ | ✔ | ✖ | ✖ |
+| Edit question content | ✔ | ✔ | ✖ | ✖ |
 | Delete question | ✔ | ✔ | ✖ | ✖ |
 | View question history | ✔ | ✔ | ✔ | ✖ |
 
@@ -108,7 +107,8 @@
 | View review status | ✔ | ✔ | Own reviews | ✖ |
 | Approve question | ✔ | ✔ | ✔ | ✖ |
 | Reject question | ✔ | ✔ | ✔ | ✖ |
-| Request revision | ✔ | ✔ | ✔ | ✖ |
+| Add batch notes | ✔ | ✔ | ✔ | ✖ |
+| View batch notes | ✔ | ✔ | ✔ | ✖ |
 | View all review history | ✔ | ✔ | Own reviews | ✖ |
 
 ---
@@ -117,10 +117,10 @@
 
 | Action | Super Admin | Admin | SME | Intern |
 |---|---|---|---|---|
-| Start diagram pipeline | ✔ | ✔ | ✖ | ✖ |
 | View diagram status | ✔ | ✔ | ✖ | ✔ (own batch) |
-| Retry failed diagram | ✔ | ✔ | ✖ | ✖ |
-| Manual diagram upload | ✔ | ✔ | ✖ | ✖ |
+| Upload diagram image | ✔ | ✔ | ✖ | ✔ (own batch) |
+| Replace diagram image | ✔ | ✔ | ✖ | ✔ (own batch) |
+| Retry failed job | ✔ | ✔ | ✖ | ✔ (own batch) |
 
 ---
 
@@ -134,15 +134,15 @@
 
 ---
 
-## n8n Sync
+## Production Sync
 
 | Action | Super Admin | Admin | SME | Intern |
 |---|---|---|---|---|
-| Trigger sync to Production | ✔ | ✔ | ✖ | ✖ |
+| Trigger n8n sync to Production | ✔ | ✔ | ✖ | ✖ |
 
 ---
 
-## Settings / Admin
+## Settings / Admin Panels
 
 | Module | Super Admin | Admin | SME | Intern |
 |---|---|---|---|---|

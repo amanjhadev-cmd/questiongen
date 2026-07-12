@@ -2,35 +2,34 @@
 
 ## Overview
 
-The Diagram Pipeline converts natural language diagram descriptions (written by the LLM during question generation) into actual images, uploads them to Cloudflare R2, and writes the URL back to the question record.
+The Diagram Pipeline manages the lifecycle from a text diagram description (written by the Qwen-generated question) to a stored image URL linked back to the question. Image generation is done externally by the intern — the platform handles job tracking, R2 storage, URL linking, and version management.
 
 ## Flow
 
 ```
-Question imported with diagram_required: true
+Validation complete → system scans questions for diagram_required = true
               ↓
-Admin clicks "Start Diagram Pipeline" on batch
+Creates diagram_jobs row for each (status: 'pending')
+Sets question.status = 'diagram_pending'
               ↓
-System creates diagram_jobs rows for each question needing diagram
+Intern opens "Pending Diagrams" panel
               ↓
-Worker picks up pending jobs (FIFO)
+For each pending job:
+  Intern copies diagram_description
               ↓
-Reads diagram_description from question.content
+  Intern generates image in external tool (Midjourney, DALL-E, etc.)
               ↓
-Calls Image Generation API (n8n → external image API)
+  Intern uploads PNG to platform
               ↓
-Receives image binary
+  Platform uploads PNG → Cloudflare R2
               ↓
-Uploads to Cloudflare R2 (S3-compatible PUT)
+  Platform creates diagram_assets row (r2_key, public_url, version, original_description)
               ↓
-Creates diagram_assets row with r2_key + public_url
+  Platform updates question.content: diagram_url, diagram_alt_text
+  Sets question.status = 'diagram_done'
+  Sets diagram_jobs.status = 'uploaded'
               ↓
-Updates question.content.diagram_url = public_url
-Updates question.content.diagram_alt_text = generated alt text
-Updates question.status = 'diagram_done'
-Updates diagram_jobs.status = 'done'
-              ↓
-Batch status updates when all jobs complete
+When all jobs complete → batch.status = 'diagram_complete'
 ```
 
 ## R2 Folder Naming Convention
@@ -46,96 +45,98 @@ diagrams/MATH9/a3f4b2c1-.../.../v1.png
 ```
 
 Rules:
-- `subject_code` is always from `subjects.code` (uppercase, alphanumeric)
+- `subject_code` is from `subjects.code` (uppercase, alphanumeric, e.g. `SCI10`)
 - `batch_id` and `question_id` are full UUIDs
-- Version increments if a diagram is regenerated (old version kept, new version is `is_active: true`)
-- No spaces or special characters in any path segment
+- Version increments if a diagram is re-uploaded (old version retained; new version is `is_active: true`)
+- No spaces, no special characters in any path segment
+- Always `.png` — no other formats in V1
 
-## diagram_jobs Table
+## diagram_jobs Status
 
-See `03_DATABASE_SCHEMA.md` for full schema.
-
-Job status flow:
 ```
-pending → processing → done
-pending → processing → failed (attempts <= 3)
-failed after 3 attempts → stuck (requires manual intervention)
+pending → uploaded
+pending → failed (if upload errors out — manual retry available)
 ```
 
-Retry logic: exponential backoff — 30s, 2min, 10min.
+There is no `processing` state. The platform does not call any image generation API. Generation is purely external.
 
-## diagram_assets Table
+## diagram_assets
 
-Each completed job creates one row. If a diagram is regenerated, a new row is created with `version + 1` and `is_active: true`; previous version set to `is_active: false`.
+Each upload creates one row. If a diagram is re-uploaded (replaced), a new row is created with `version + 1` and `is_active: true`; the previous version is set to `is_active: false`. Old versions are kept for audit.
 
-## Cloudflare R2 Upload
+Fields stored:
+- `r2_key` — full S3 path
+- `public_url` — served via Cloudflare CDN
+- `version` — incrementing integer per question
+- `original_description` — the description at time of upload (for audit)
+
+## Cloudflare R2 Upload (Backend)
 
 ```typescript
-// AWS SDK v3 (S3-compatible)
-const s3Client = new S3Client({
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+
+const s3 = new S3Client({
   region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,   // https://<account>.r2.cloudflarestorage.com
+  endpoint: process.env.R2_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
 })
 
-await s3Client.send(new PutObjectCommand({
-  Bucket: process.env.R2_BUCKET_NAME,
-  Key: r2Key,
-  Body: imageBuffer,
-  ContentType: 'image/png',
-  ACL: 'public-read',
-}))
+async function uploadDiagram(key: string, imageBuffer: Buffer): Promise<string> {
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.R2_BUCKET_NAME!,
+    Key: key,
+    Body: imageBuffer,
+    ContentType: 'image/png',
+  }))
+  return `${process.env.R2_PUBLIC_URL}/${key}`
+}
 ```
 
-Public URL format:
-```
-https://{custom_domain}/{r2_key}
-```
-or (if no custom domain):
-```
-https://pub-{bucket_id}.r2.dev/{r2_key}
-```
+The intern uploads via a multipart/form-data form field. The API receives the file via Multer, calls `uploadDiagram`, then creates the asset record.
 
-## Image Generation
-
-V1: Image generation is done via n8n calling an external API (e.g. DALL-E, Stable Diffusion, or a custom diagram renderer).
-
-The `diagram_description` field contains a precise, structured description:
+## Alt Text Generation
 
 ```
+"{subject} – {chapter}: {first 120 chars of diagram_description}"
+```
+
 Example:
-"A labelled diagram of a plant cell showing: cell wall, cell membrane, nucleus,
-chloroplast, vacuole, and mitochondria. Use a clean scientific illustration style
-with clear labels and arrows. White background. 800x600 pixels."
+```
+"Science – Chemical Reactions: A labelled diagram of a plant cell showing cell wall, cell membrane, nucleus, chloroplast..."
 ```
 
-The system does NOT use the image API directly — it sends the description to n8n which handles the API call and returns the image URL or binary.
+Stored in `question.content.diagram_alt_text`. Included in PDF exports for accessibility.
 
-## Progress Tracking
+## Pending Diagrams Panel (UI)
 
-Admin sees per-batch diagram progress:
-```
-Diagram Pipeline: 14/20 complete | 3 processing | 2 pending | 1 failed
-```
+Intern sees a table:
 
-Clicking a failed job shows the error message and a "Retry" button.
+| # | Question Preview | Diagram Description | Status | Action |
+|---|---|---|---|---|
+| 5 | "Which diagram shows..." | "Labelled diagram of..." | Pending | Upload |
+| 8 | "Refer to the diagram..." | "Circuit diagram with..." | Uploaded ✔ | Replace |
 
-## Manual Override
+Progress bar: `Uploaded: 6/9`
 
-If auto-generation fails or produces a bad image:
-- Admin can upload a manually created image for a specific question
-- Upload goes through the same R2 path with `v2.png`
-- diagram_assets row created with `version: 2, is_active: true`
-- Question updated with new URL
+## Diagram Batches with No Diagrams
 
-## Alt Text
+If no questions in the batch have `diagram_required = true`, the Diagram Pipeline step is skipped:
+- No `diagram_jobs` rows created
+- Batch status moves directly from `validation_complete` to `diagram_complete`
+- No action required from intern or admin
 
-Alt text is auto-generated as:
-```
-"{subject} - {chapter}: {first 100 chars of diagram_description}"
-```
+## Replacing a Diagram
 
-This is stored in `question.content.diagram_alt_text` and included in PDF and JSON exports for accessibility.
+If a diagram is wrong or needs to be updated:
+1. Intern uploads a new image via the "Replace" button
+2. New `diagram_assets` row created with `version + 1`
+3. Old version set to `is_active: false`
+4. `question.content.diagram_url` updated to new public URL
+5. `diagram_jobs.status` stays `uploaded`
+
+## Manual Override by Admin
+
+Admin can also upload a diagram from the batch admin view — same flow as intern upload. Used when an intern is unavailable.

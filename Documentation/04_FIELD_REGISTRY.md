@@ -1,6 +1,6 @@
 # 04 — Field Registry
 
-The Field Registry is the single source of truth for every field that can appear in a question's JSON. It drives import validation, rendering, and export behaviour.
+The Field Registry is the single source of truth for every field that can appear in a question's JSON. It drives import validation, rendering, and export behaviour. Nothing is hardcoded — every field's behaviour is configured here.
 
 ## Field Record Structure
 
@@ -8,9 +8,7 @@ The Field Registry is the single source of truth for every field that can appear
 {
   field_name: string          // e.g. "question_text"
   label: string               // Human-readable label for UI
-  mode: "required" | "optional" | "conditional"
-  dependency?: string         // field_name of trigger field (only for conditional)
-  dependency_value?: string   // value of trigger field that activates this field
+  mode: "required" | "optional" | "disabled" | "auto"
   data_type: "string" | "number" | "boolean" | "array" | "object"
   validation_rule: {
     min_length?: number
@@ -23,19 +21,30 @@ The Field Registry is the single source of truth for every field that can appear
   }
   rendering_rule: {
     type: "katex" | "html" | "plain" | "image" | "table"
-    component: string         // React component name, e.g. "KatexRenderer"
-    wrap_in?: string          // optional HTML wrapper
+    component: string         // React component name
+    wrap_in?: string
   }
   export_rule: {
     include_in_json: boolean
     include_in_pdf: boolean
     include_in_excel: boolean
-    pdf_label?: string        // override label in PDF
-    excel_column?: string     // column header in Excel
+    pdf_label?: string
+    excel_column?: string
   }
   sort_order: number
 }
 ```
+
+## Field Modes
+
+| Mode | Meaning | Import Behaviour |
+|---|---|---|
+| `required` | Must always be present | Blocked if missing or empty |
+| `optional` | May be present | Validated only when present |
+| `disabled` | Turned off for this subject via Subject Profile | Rejected if present in import (soft warning) |
+| `auto` | Injected by the system during Metadata Injection (Phase 7) | Must NOT appear in imported JSON; error if present |
+
+Subject Profile feature flags (`diagram_enabled`, `passage_enabled`, `concept_enabled`, `solution_steps_enabled`) control which `optional` fields are promoted to `required` or `disabled` for that subject.
 
 ---
 
@@ -47,7 +56,6 @@ The Field Registry is the single source of truth for every field that can appear
 | `question_type` | required | string | enum:[MCQ,FIB,TF,MATCH,SHORT,LONG] | plain | json, pdf, excel |
 | `marks` | required | number | min:1, max:10 | plain | json, pdf, excel |
 | `difficulty` | required | string | enum:[easy,medium,hard] | plain | json, pdf, excel |
-| `concept_uuid` | required | string | pattern: ^[A-Z]{2,6}-\d{4}-[A-Z0-9]{4}$ | plain | json only |
 | `bloom_level` | required | string | enum:[remember,understand,apply,analyze,evaluate,create] | plain | json, excel |
 | `explanation` | required | string | min:20, max:3000 | katex | json, pdf |
 | `tags` | optional | array | max_items:10, item: string | plain | json, excel |
@@ -56,13 +64,46 @@ The Field Registry is the single source of truth for every field that can appear
 
 ---
 
+## Auto-Injected Fields (Phase 7 — Metadata Injection)
+
+These fields are set by the system during Phase 7. They must NOT be in the imported JSON.
+
+| field_name | mode | data_type | Source |
+|---|---|---|---|
+| `board` | auto | string | Batch → Subject → Class → Board |
+| `class` | auto | string | Batch → Subject → Class |
+| `subject` | auto | string | Batch → Subject |
+| `chapter_uuid` | auto | string | Batch → Chapter UUID |
+| `batch_uuid` | auto | string | Batch ID |
+| `prompt_version` | auto | string | Subject Profile → Prompt Version |
+| `schema_version` | auto | string | Subject Profile → Schema Version |
+| `created_by` | auto | string | Current user ID |
+| `created_at` | auto | string | ISO timestamp |
+
+---
+
+## Concept Fields (Subject Profile: concept_enabled = true)
+
+| field_name | mode | data_type | validation |
+|---|---|---|---|
+| `concept_uuids` | required (when concept_enabled) | array | min_items:1, max_items: ≤ subject_profile.max_concepts |
+| `concept_uuids[]` | — | string | pattern: ^[A-Z]{2,6}-\d{4}-[A-Z0-9]{4}$ |
+
+When `concept_enabled = false` (e.g. English), this field is `disabled` — validation rejects it if present.
+
+---
+
 ## MCQ-Specific Fields
 
-| field_name | mode | data_type | validation | notes |
-|---|---|---|---|---|
-| `options` | required | array | min_items:4, max_items:4 | Each option: {key: string, text: string} |
-| `correct_option` | required | string | enum:[A,B,C,D] | Key of the correct option |
-| `distractor_rationale` | optional | object | keys: A,B,C,D | Why each wrong option is wrong |
+| field_name | mode | data_type | validation |
+|---|---|---|---|
+| `options` | required | array | min_items:4, max_items:4 |
+| `options[].key` | required | string | enum:[A,B,C,D] |
+| `options[].text` | required | string | min:1 |
+| `correct_option` | required | string | enum:[A,B,C,D] |
+| `distractor_rationale` | optional | object | keys: A,B,C,D |
+
+Validation also checks: no duplicate option texts, correct_option key must exist in options array.
 
 ---
 
@@ -71,9 +112,9 @@ The Field Registry is the single source of truth for every field that can appear
 | field_name | mode | data_type | validation |
 |---|---|---|---|
 | `blanks` | required | array | min_items:1, max_items:5 |
-| `blanks[].position` | required | number | Integer index in question_text |
+| `blanks[].position` | required | number | integer index |
 | `blanks[].answer` | required | string | min:1, max:100 |
-| `blanks[].alternatives` | optional | array | Accepted alternate answers |
+| `blanks[].alternatives` | optional | array | accepted alternate answers |
 
 ---
 
@@ -82,7 +123,6 @@ The Field Registry is the single source of truth for every field that can appear
 | field_name | mode | data_type | validation |
 |---|---|---|---|
 | `correct_answer` | required | boolean | true or false |
-| `statement` | required | string | min:10, max:500 |
 
 ---
 
@@ -92,38 +132,47 @@ The Field Registry is the single source of truth for every field that can appear
 |---|---|---|---|
 | `column_a` | required | array | min_items:3, max_items:6 |
 | `column_b` | required | array | min_items:3, max_items:6 |
-| `correct_matches` | required | object | Keys from column_a mapped to column_b values |
+| `correct_matches` | required | object | keys from column_a mapped to column_b values |
 
 ---
 
-## Diagram Fields (Conditional)
-
-| field_name | mode | dependency | dependency_value | data_type |
-|---|---|---|---|---|
-| `diagram_required` | optional | — | — | boolean |
-| `diagram_description` | conditional | `diagram_required` | `true` | string |
-| `diagram_url` | conditional | `diagram_required` | `true` | string |
-| `diagram_alt_text` | conditional | `diagram_required` | `true` | string |
-
-`diagram_url` is populated by the Diagram Pipeline after generation — it must NOT be present in the raw imported JSON.
-
----
-
-## Metadata Fields
+## Diagram Fields (Subject Profile: diagram_enabled = true)
 
 | field_name | mode | data_type | notes |
 |---|---|---|---|
-| `language` | optional | string | enum:[en,hi] default: en |
-| `is_ncert` | optional | boolean | true if sourced from NCERT textbook |
-| `ncert_page` | conditional | `is_ncert` is true | number | Page reference |
-| `year_asked` | optional | number | Board exam year this appeared |
+| `diagram_required` | optional | boolean | Intern can set true/false per question |
+| `diagram_description` | required (when diagram_required=true) | string | min:10 — intern writes this; Qwen generates it |
+| `diagram_url` | auto | string | Added by system after R2 upload — NEVER in imported JSON |
+| `diagram_alt_text` | auto | string | Generated from description — NEVER in imported JSON |
+
+When `diagram_enabled = false` (e.g. English), the entire diagram group is `disabled`.
+
+---
+
+## Passage Field (Subject Profile: passage_enabled = true)
+
+| field_name | mode | data_type | notes |
+|---|---|---|---|
+| `passage` | required (when passage_enabled) | string | min:50, max:5000 — for comprehension questions |
+
+---
+
+## Solution Steps Field (Subject Profile: solution_steps_enabled = true)
+
+| field_name | mode | data_type | notes |
+|---|---|---|---|
+| `solution_steps` | required (when solution_steps_enabled) | array | Step-by-step maths/physics solution |
+| `solution_steps[].step_no` | required | number | |
+| `solution_steps[].content` | required | string | KaTeX-rendered |
 
 ---
 
 ## Validation Precedence
 
-1. `required` fields → must be present and non-empty
-2. `conditional` fields → validated only when their dependency condition is met
-3. `optional` fields → validated only when present
-4. Type checks run first, then validation_rule checks
-5. Unknown fields in imported JSON are flagged as warnings, not errors (soft fail)
+1. `auto` fields → rejected if present in import (they are system-owned)
+2. `disabled` fields → warning if present in import
+3. `required` fields → must be present and non-empty
+4. `optional` fields → validated only when present
+5. Type checks run first, then validation_rule checks
+6. Question-type-specific rules run after core field checks
+7. Concept UUID checks run last (requires DB lookup)

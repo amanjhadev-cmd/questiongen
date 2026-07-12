@@ -8,13 +8,14 @@
 /batches
 /batches/new
 /batches/:id
+/batches/:id/prompt
 /batches/:id/import
 /batches/:id/questions
 /batches/:id/diagrams
 /batches/:id/export
 /review
 /review/:batchId
-/prompts
+/prompts                    (Admin only)
 /prompts/:id
 /prompts/:id/versions/:versionId
 /admin/users
@@ -22,14 +23,13 @@
 /admin/field-registry
 /admin/subject-profiles
 /admin/schemas
-/settings
 ```
 
 ---
 
 ## /login
 
-**Access:** Public (redirects to /dashboard if already logged in)
+**Access:** Public
 
 **Components:**
 - Logo
@@ -38,7 +38,7 @@
 - Error message display
 
 **Actions:**
-- POST /auth/login → store access token → redirect to /dashboard
+- POST /auth/login → store access token in memory → redirect to /dashboard
 
 ---
 
@@ -46,22 +46,20 @@
 
 **Access:** All roles
 
-**Layout:** Sidebar navigation + top bar (user avatar, name, role badge)
-
 **Content (varies by role):**
 
 *Admin / Super Admin:*
-- Stats row: Total Batches | Batches In Review | Batches Approved | Exports This Month
-- Recent Batches table (last 10, with status badges)
+- Stats row: Total Batches | In Progress | SME Review Complete | Synced This Month
+- Recent Batches table with status badges
 - Quick Actions: New Batch | View All Batches | Prompt Library
 
 *SME:*
-- Review Queue: batches pending SME review
+- Review Queue: batches assigned and pending review
 - My Stats: Approved | Rejected | Pending This Month
 
 *Intern:*
 - My Batches: active batches assigned to them
-- Quick Actions: New Batch
+- Quick Action: New Batch
 
 ---
 
@@ -72,9 +70,8 @@
 **Components:**
 - Filter bar: Status | Subject | Date Range | Assigned To
 - Batches table:
-  - Columns: Name | Subject | Chapter | Status | Created By | Assigned To | Updated At | Actions
+  - Columns: Name | Subject | Chapter | Type | Difficulty | Status | Assigned To | Updated At | Actions
   - Status badge (colour-coded)
-  - Actions: View | Export (Admin+)
 - Pagination
 - "New Batch" button (Admin + Intern)
 
@@ -84,48 +81,109 @@
 
 **Access:** Admin, Intern
 
-**Steps (multi-step form):**
+**Multi-step form:**
 
-Step 1: Select Subject
-- Board → Class → Subject cascading dropdowns
-- Chapter (optional dropdown)
+**Step 1: Select Content**
+```
+Board ──► Class ──► Subject ──► Chapter (optional)
+Question Type: [MCQ] [FIB] [TF] [MATCH] [SHORT] [LONG]
+Difficulty: [Easy] [Medium] [Hard]
+Question Count: [input, default 20]
+```
 
-Step 2: Confirm Profile
-- Displays active Subject Profile details:
-  - Prompt Version
-  - Schema Version
-  - Generation Provider
-- Warning if no profile configured
+**Step 2: Confirm Profile**
+Displays active Subject Profile:
+```
+Prompt: Science MCQ v6
+Schema: question-schema-v2
+Provider: Manual Qwen
+Max Concepts: 3
+Features: Diagram ✔ | Concept ✔ | Passage ✖ | Solution Steps ✖
+```
+Warning shown if no active profile for selected subject.
 
-Step 3: Batch Details
-- Batch Name (text input)
-- Notes (textarea, optional)
-- Assign To (dropdown of interns — Admin only)
+**Step 3: Batch Details**
+```
+Batch Name: [text input]
+Notes: [textarea, optional]
+Assign To: [dropdown of interns — Admin only]
+```
 
-Step 4: Confirm & Create
-- Summary
-- Create button → POST /batches → redirect to /batches/:id
+**Step 4: Confirm & Create**
+→ POST /batches → redirect to /batches/:id
 
 ---
 
 ## /batches/:id
 
-**Access:** Admin (all), Intern (own), SME (read-only for assigned)
+**Access:** Admin (all), Intern (own), SME (read, assigned)
 
 **Sections:**
-- Batch Header: Name | Subject | Chapter | Status badge | Created by | Assigned to
-- Progress Timeline: Created → Generating → Importing → Validating → Diagramming → Reviewing → Approved → Exported
-- Action Panel (context-sensitive):
-  - `created`: "Generate Questions" button (links to n8n trigger)
-  - `generating`: Spinner + "Waiting for AI..."
-  - `importing`: "Import Questions" button
-  - `validating`: Spinner
-  - `diagramming`: Diagram progress bar
-  - `reviewing`: "View SME Progress" | (SME: "Review Questions")
-  - `approved`: "Export" button
-  - `exported`: "Download Exports" | "Sync to Production"
-- Questions summary: X imported | Y approved | Z rejected
-- Notes section
+
+**Batch Header**
+Name | Subject | Chapter | Type | Difficulty | Count | Status badge | Assigned to
+
+**Pipeline Status Bar**
+```
+[Created] → [Generation Complete] → [Import Complete] → [Validation Complete]
+         → [Diagram Complete] → [SME Review Complete] → [Export Complete] → [Synced]
+```
+Current stage highlighted. Completed stages checkmarked.
+
+**Action Panel (context-sensitive by status)**
+
+| Status | Intern sees | Admin sees |
+|---|---|---|
+| `created` | "View Prompt & Copy" | "View Prompt" |
+| `generation_complete` | "Import Questions" | "Import Questions" |
+| `import_complete` | Validation results | Validation results |
+| `validation_complete` | "View Diagrams" (if applicable) | "View Diagrams" / "Send to SME Review" |
+| `diagram_complete` | Progress bar | "Send to SME Review" |
+| `sme_review_complete` | Read-only | "Export" |
+| `export_complete` | Download links | Download links + "Sync to Production" |
+| `synced` | Done banner | Done banner |
+
+**Questions Summary Strip**
+Total | Validated | Diagram Done | Approved | Rejected
+
+---
+
+## /batches/:id/prompt
+
+**Access:** Intern (own batch), Admin (any)
+
+**Components:**
+
+Top section — Bloom Level selector (dropdown not in batch, selected here):
+```
+[Remember] [Understand] [Apply] [Analyze] [Evaluate] [Create]
+```
+
+Prompt box (read-only, interpolated):
+```
+┌──────────────────────────────────────────┐
+│ You are an expert Science teacher...     │
+│ Generate 20 MCQ questions on...          │
+│ Difficulty: Easy | Bloom: Understand     │
+│ Maximum 3 concepts per question...       │
+└──────────────────────────────────────────┘
+[Copy Prompt]
+```
+
+Concept List (shown only if concept_enabled = true):
+```
+UUID: SCI-1042-CH3A
+Name: Combination Reaction
+Note: Two or more substances combine to form...
+────────────────────────────────
+UUID: SCI-1042-CH3B
+Name: Decomposition Reaction
+Note: A single compound breaks into simpler...
+────────────────────────────────
+[Copy Concept List]
+```
+
+"Mark Generation Complete" button → POST /batches/:id/mark-generation-complete
 
 ---
 
@@ -135,49 +193,49 @@ Step 4: Confirm & Create
 
 **Components:**
 - Paste area (large textarea) OR file upload zone (.json, max 5MB)
-- Mode toggle: Append / Replace
-- Import button → POST /batches/:id/questions/import
+- Mode toggle: Append / Replace (with clear warning on Replace)
+- "Import & Validate" button → POST /batches/:id/questions/import
 - Validation Results panel (appears after import):
   - Summary bar: X passed | Y failed | Z warnings
-  - Table: all questions with status + error details
+  - Table: all questions with status icon (✔ / ✖ / ⚠) and error list
   - "Download Failed Questions" button
 
 ---
 
 ## /batches/:id/questions
 
-**Access:** All roles (role-appropriate actions)
+**Access:** All roles
 
 **Components:**
 - Filter bar: Status | Question Type | Difficulty | Bloom Level
 - Questions table:
-  - Columns: # | Preview | Type | Difficulty | Marks | Status | Actions
-  - Preview: first 80 chars of question_text (rendered)
-  - Actions: View | Edit (Admin+) | Delete (Admin+)
+  - Columns: # | Preview (first 80 chars, rendered) | Type | Difficulty | Marks | Status | Actions
+  - Actions: View (all), Edit (Admin+), Delete (Admin+)
 - Pagination (20 per page)
 
-Question Detail Modal:
+**Question Detail Modal:**
 - Full rendered question (KaTeX)
-- Options
-- Correct Answer
-- Explanation
+- Options, correct answer
+- Explanation (collapsed, expandable)
 - Diagram (if present)
-- Metadata
-- Review History
+- Concept UUIDs
+- Injected metadata strip
+- Review history (latest SME decision + note)
 
 ---
 
 ## /batches/:id/diagrams
 
-**Access:** Admin
+**Access:** Admin, Intern
 
 **Components:**
-- Summary: Total | Pending | Processing | Done | Failed
+- Summary strip: Pending: X | Uploaded: Y | Failed: Z
 - Progress bar
-- "Start Pipeline" button (if not started)
-- Jobs table: Question # | Description preview | Status | Created | Updated | Actions
-- Failed jobs: Error message + "Retry" button
-- Manual upload button per question
+- Table: Q# | Question preview | Diagram Description | Status | Action
+  - Status: Pending → shows "Upload" button
+  - Status: Uploaded → shows "Replace" button + thumbnail
+  - Status: Failed → shows error + "Retry" button
+- Upload modal: file input + preview + confirm
 
 ---
 
@@ -186,8 +244,9 @@ Question Detail Modal:
 **Access:** Admin, Super Admin
 
 **Components:**
-- Export format buttons: JSON | PDF | Excel
-- Past Exports table: Format | Created At | Status | Download link
+- "Generate Exports" button (triggers JSON + Excel + PDF together)
+- Export history table: Format | Status | Created At | Download link
+- "Sync to Production" button (appears after export_complete, confirms before triggering)
 
 ---
 
@@ -196,8 +255,8 @@ Question Detail Modal:
 **Access:** SME only
 
 **Content:**
-- "My Review Queue" — batches in `reviewing` status assigned to this SME
-- Each row: Batch name | Subject | Total questions | Reviewed | Remaining | "Start Review" button
+- "My Review Queue" table: Batch Name | Subject | Total | Reviewed | Remaining | "Start Review"
+- "Completed Reviews" section (past batches)
 
 ---
 
@@ -208,24 +267,30 @@ Question Detail Modal:
 **Components:**
 - Progress bar: 14/20 reviewed
 - Filter: All | Pending | Approved | Rejected
-- Question card (one per screen on mobile, list on desktop):
-  - Fully rendered question
-  - 3 action buttons: Approve | Reject | Request Revision
-  - Reject / Revision modal with required notes field
-  - Previous review history (if any)
-- Navigation: Prev / Next question
-- Batch notes input (saved on blur)
+- Question card (full rendered view):
+  - Diagram (if present)
+  - Question text (KaTeX)
+  - Options (MCQ) or relevant content
+  - Explanation (collapsed, expandable)
+  - Metadata strip: Type | Difficulty | Bloom | Marks | Concept
+  - **[Approve]** and **[Reject]** buttons only
+  - Rejection modal: required notes field
+  - Previous review result badge (if re-reviewing after intern resubmit)
+- Prev / Next navigation
+- "Submit Review" button (shown when all questions reviewed):
+  - Opens Batch Notes textarea (optional)
+  - Confirm → POST /batches/:batchId/review/submit
 
 ---
 
 ## /prompts
 
-**Access:** Admin (read + write), SME (read), Super Admin (full)
+**Access:** Admin, Super Admin only (Intern has no access to this nav)
 
 **Components:**
-- Prompts list: Name | Subject | Versions | Status | Actions
+- Prompts list: Name | Subject | Latest Version | Status | Actions
 - "New Prompt" button (Admin+)
-- Version count badge
+- Filter by subject
 
 ---
 
@@ -234,23 +299,24 @@ Question Detail Modal:
 **Access:** Admin (edit draft), Super Admin (publish/archive)
 
 **Components:**
-- Version selector (dropdown)
-- Version status badge + Publish / Archive buttons (Super Admin)
-- Prompt content editor (CodeMirror or textarea for draft, read-only for published)
-- Variables list (auto-detected `{{variable}}` highlights)
-- Preview: fill in sample values → see interpolated prompt
-- "Duplicate as new version" button
+- Version selector dropdown
+- Status badge (draft / published / archived)
+- Publish / Archive buttons (Super Admin only)
+- Content editor (editable for draft, read-only for published/archived)
+- Variables list (auto-detected `{{variable}}` tokens shown as chips)
+- Live preview: sample values → see interpolated output
+- "Duplicate as New Version" button (Admin+)
 
 ---
 
 ## /admin/users
 
-**Access:** Super Admin (all), Admin (intern management)
+**Access:** Super Admin (all roles), Admin (interns only)
 
 **Components:**
-- Users table: Name | Email | Role | Status | Created At | Actions
-- "Invite User" button → modal: name, email, role, temporary password
-- Edit role / deactivate per user
+- Users table: Name | Email | Role | Status | Created At
+- "Invite User" button → modal: name, email, role, temp password
+- Edit role / deactivate
 
 ---
 
@@ -258,9 +324,9 @@ Question Detail Modal:
 
 **Access:** Super Admin
 
-**Components:**
-- Tabs: Boards | Classes | Subjects | Chapters | Concepts | Question Types
-- Each tab: table with add/edit/delete
+**Tabs:** Boards | Classes | Subjects | Chapters | Concepts | Question Types
+
+Concepts tab includes `short_note` field in add/edit form.
 
 ---
 
@@ -268,12 +334,9 @@ Question Detail Modal:
 
 **Access:** Super Admin
 
-**Components:**
-- Fields table with all registry entries
-- "Add Field" button
-- Edit: inline or modal
-- Sort order drag-and-drop
-- Active/inactive toggle
+**Columns:** Field Name | Label | Mode | Data Type | Active | Actions
+
+Mode values shown as badges: `required` (red) | `optional` (blue) | `disabled` (grey) | `auto` (purple)
 
 ---
 
@@ -282,9 +345,13 @@ Question Detail Modal:
 **Access:** Super Admin
 
 **Components:**
-- Subject list (one profile per subject)
-- "Configure Profile" per subject
-- Profile modal: select prompt version, schema version, set provider + max_concepts
+- Subject list showing current profile per subject
+- "Configure Profile" per subject → opens profile editor:
+  - Prompt Version selector (published only)
+  - Schema Version selector
+  - Max Concepts input (0 to 10)
+  - Generation Provider text field
+  - Feature flags toggles: Diagram | Concept | Passage | Solution Steps
 
 ---
 
@@ -294,5 +361,5 @@ Question Detail Modal:
 
 **Components:**
 - Schema list with version history
-- "New Version" button → JSON editor (Monaco/CodeMirror)
+- "New Version" → JSON editor (Monaco/CodeMirror)
 - View diff between versions
