@@ -162,7 +162,7 @@ export default function SettingsPage() {
                   <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={(profileForm as Record<string, boolean>)[key] ?? false}
+                      checked={(profileForm as unknown as Record<string, boolean>)[key] ?? false}
                       onChange={(e) => setProfileForm((p) => ({ ...p, [key]: e.target.checked }))}
                     />
                     {label}
