@@ -6,6 +6,11 @@ import promptRoutes from './prompt.routes'
 import batchRoutes from './batch.routes'
 import subjectProfileRoutes from './subject-profile.routes'
 import schemaRoutes from './schema.routes'
+import diagramRoutes from './diagram.routes'
+import reviewRoutes from './review.routes'
+import exportRoutes from './export.routes'
+import questionRoutes from './question.routes'
+import fieldRegistryRoutes from './field-registry.routes'
 
 const router = Router()
 
@@ -13,16 +18,32 @@ router.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
+// Auth & Users
 router.use('/auth', authRoutes)
 router.use('/users', userRoutes)
+
+// Master Data
 router.use('/master', masterDataRoutes)
+
+// Prompt Library & Schemas
 router.use('/prompts', promptRoutes)
 router.use('/schemas', schemaRoutes)
+
+// Subject Profiles & Field Registry (M5 Admin Config)
 router.use('/subject-profiles', subjectProfileRoutes)
+router.use('/field-registry', fieldRegistryRoutes)
+
+// Batch Pipeline
 router.use('/batches', batchRoutes)
 
-// TODO M3: /diagrams routes
-// TODO M4: /review routes, /exports routes
-// TODO M5: /field-registry routes
+// Batch-nested: review + export (merged params from batch routes)
+router.use('/batches/:batchId', reviewRoutes)
+router.use('/batches/:batchId', exportRoutes)
+
+// Diagram Pipeline (M3) — uses its own flat paths
+router.use('/', diagramRoutes)
+
+// Individual question review (M4)
+router.use('/questions', questionRoutes)
 
 export default router
