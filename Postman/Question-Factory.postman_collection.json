@@ -141,7 +141,7 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"CBSE\",\n  \"code\": \"CBSE\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"CBSE\"\n}" },
             "url": { "raw": "{{base_url}}/master/boards", "host": ["{{base_url}}"], "path": ["master", "boards"] }
           }
         },

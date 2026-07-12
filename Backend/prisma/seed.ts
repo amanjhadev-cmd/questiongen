@@ -106,36 +106,39 @@ async function main() {
   }
 
   // ── Schema ────────────────────────────────────────────────────────────────────
-  const schema = await prisma.schema.create({
-    data: { name: 'Question Schema' },
-  })
-
-  await prisma.schemaVersion.create({
-    data: {
-      schemaId: schema.id,
-      versionNo: 2,
-      definition: {
-        $schema: 'http://json-schema.org/draft-07/schema#',
-        title: 'QuestionSchema',
-        version: 2,
-        type: 'object',
-        required: ['question_text', 'question_type', 'marks', 'difficulty', 'bloom_level', 'explanation'],
+  let schema = await prisma.schema.findFirst({ where: { name: 'Question Schema' } })
+  if (!schema) {
+    schema = await prisma.schema.create({ data: { name: 'Question Schema' } })
+    await prisma.schemaVersion.create({
+      data: {
+        schemaId: schema.id,
+        versionNo: 2,
+        definition: {
+          $schema: 'http://json-schema.org/draft-07/schema#',
+          title: 'QuestionSchema',
+          type: 'object',
+          required: ['question_text', 'question_type', 'marks', 'difficulty', 'bloom_level', 'explanation'],
+        },
+        createdById: superAdmin.id,
       },
-      createdById: superAdmin.id,
-    },
-  })
+    })
+  }
 
   // ── Prompt ────────────────────────────────────────────────────────────────────
-  const sciencePrompt = await prisma.prompt.create({
-    data: {
-      name: 'Science MCQ',
-      subjectId: science.id,
-      description: 'Standard MCQ prompt for Science subjects with concept mapping and diagram support',
-      createdById: superAdmin.id,
-    },
-  })
+  let sciencePrompt = await prisma.prompt.findFirst({ where: { name: 'Science MCQ', subjectId: science.id } })
+  if (!sciencePrompt) {
+    sciencePrompt = await prisma.prompt.create({
+      data: {
+        name: 'Science MCQ',
+        subjectId: science.id,
+        description: 'Standard MCQ prompt for Science subjects with concept mapping and diagram support',
+        createdById: superAdmin.id,
+      },
+    })
+  }
 
-  await prisma.promptVersion.create({
+  const existingVersion = await prisma.promptVersion.findFirst({ where: { promptId: sciencePrompt.id, versionNo: 6 } })
+  if (!existingVersion) await prisma.promptVersion.create({
     data: {
       promptId: sciencePrompt.id,
       versionNo: 6,
@@ -165,6 +168,7 @@ JSON Schema:
   })
 
   console.log('Seed complete.')
+  // idempotent: re-running seed is safe
   console.log('Login: superadmin@questiongen.com / Admin@123')
 }
 

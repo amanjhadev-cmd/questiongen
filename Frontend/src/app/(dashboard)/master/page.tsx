@@ -223,7 +223,7 @@ export default function MasterDataPage() {
           {boards.map((b) => (
             <div key={b.id} className="px-5 py-3 flex items-center justify-between">
               <span className="text-sm text-gray-800">{b.name}</span>
-              <code className="text-xs text-brand bg-brand-muted px-2 py-0.5 rounded">{b.code}</code>
+              <code className="text-xs text-brand bg-brand-muted px-2 py-0.5 rounded">{b.name.slice(0, 6).toUpperCase()}</code>
             </div>
           ))}
           {boards.length === 0 && <p className="px-5 py-4 text-sm text-gray-400">No boards yet.</p>}

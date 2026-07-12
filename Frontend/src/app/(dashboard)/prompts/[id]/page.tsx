@@ -55,7 +55,7 @@ export default function PromptDetailPage() {
   async function archivePrompt() {
     if (!confirm('Archive this prompt? It will no longer be selectable for new subject profiles.')) return
     try {
-      await api.post(`/prompts/${id}/archive`)
+      await api.delete(`/prompts/${id}`)
       router.push('/prompts')
     } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed') }
   }

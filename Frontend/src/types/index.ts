@@ -7,7 +7,7 @@ export interface User {
   createdAt: string
 }
 
-export interface Board { id: string; name: string; code: string }
+export interface Board { id: string; name: string }
 export interface Class { id: string; boardId: string; name: string; board: Board }
 export interface Subject { id: string; classId: string; name: string; code: string; class: Class }
 export interface Chapter { id: string; subjectId: string; name: string; chapterNo: number }
