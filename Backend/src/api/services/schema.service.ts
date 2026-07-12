@@ -13,6 +13,10 @@ export async function listSchemas() {
   })
 }
 
+export async function createSchema(name: string, description?: string) {
+  return prisma.schema.create({ data: { name, description: description ?? null } })
+}
+
 export async function getSchema(id: string) {
   const schema = await prisma.schema.findUnique({
     where: { id },

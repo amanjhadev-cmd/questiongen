@@ -152,6 +152,23 @@ export async function advanceBatchStatus(id: string, to: string) {
   return prisma.batch.update({ where: { id }, data: { status: to }, include: batchIncludes })
 }
 
+export async function sendToReview(id: string, smeId: string) {
+  const batch = await prisma.batch.findUnique({ where: { id } })
+  if (!batch) throw Errors.notFound('Batch')
+
+  if (!['validation_complete', 'diagram_complete'].includes(batch.status)) {
+    throw Errors.validation(
+      `Batch must be in 'validation_complete' or 'diagram_complete' status to send to review. Current: '${batch.status}'`,
+    )
+  }
+
+  return prisma.batch.update({
+    where: { id },
+    data: { assignedTo: smeId },
+    include: batchIncludes,
+  })
+}
+
 export async function getBatchPromptPreview(batchId: string) {
   const batch = await prisma.batch.findUnique({
     where: { id: batchId },

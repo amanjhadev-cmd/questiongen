@@ -35,6 +35,13 @@ export async function markGenerationComplete(req: Request, res: Response, next: 
   } catch (e) { next(e) }
 }
 
+export async function sendToReview(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { smeId } = req.body
+    res.json(await svc.sendToReview(req.params.id, smeId))
+  } catch (e) { next(e) }
+}
+
 export async function getBatchPromptPreview(req: Request, res: Response, next: NextFunction) {
   try {
     res.json(await svc.getBatchPromptPreview(req.params.id))
