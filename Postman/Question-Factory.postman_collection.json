@@ -1,47 +1,73 @@
 {
   "info": {
     "name": "Question Factory API",
+    "description": "Complete API collection for the Question Factory platform. Set base_url and access_token variables before use. The Login request auto-saves the token via a test script.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "base_url", "value": "http://localhost:4000/api/v1" },
-    { "key": "access_token", "value": "" }
+    { "key": "access_token", "value": "" },
+    { "key": "batch_id", "value": "" },
+    { "key": "question_id", "value": "" },
+    { "key": "prompt_id", "value": "" },
+    { "key": "prompt_version_id", "value": "" },
+    { "key": "diagram_job_id", "value": "" },
+    { "key": "schema_id", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "subject_id", "value": "" },
+    { "key": "chapter_id", "value": "" },
+    { "key": "concept_id", "value": "" }
   ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
   "item": [
     {
       "name": "Auth",
       "item": [
         {
           "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.data && res.data.accessToken) {",
+                  "  pm.collectionVariables.set('access_token', res.data.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
-            "url": "{{base_url}}/auth/login",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"superadmin@questiongen.com\",\n  \"password\": \"Admin@123\"\n}"
-            }
-          },
-          "event": [{
-            "listen": "test",
-            "script": {
-              "exec": ["const r = pm.response.json(); pm.collectionVariables.set('access_token', r.data.accessToken);"]
-            }
-          }]
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
         },
         {
           "name": "Refresh Token",
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
-            "url": "{{base_url}}/auth/refresh"
+            "header": [],
+            "url": { "raw": "{{base_url}}/auth/refresh", "host": ["{{base_url}}"], "path": ["auth", "refresh"] }
           }
         },
         {
           "name": "Logout",
           "request": {
             "method": "POST",
-            "url": "{{base_url}}/auth/logout",
-            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }]
+            "header": [],
+            "url": { "raw": "{{base_url}}/auth/logout", "host": ["{{base_url}}"], "path": ["auth", "logout"] }
           }
         }
       ]
@@ -53,23 +79,759 @@
           "name": "List Users",
           "request": {
             "method": "GET",
-            "url": "{{base_url}}/users",
-            "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }]
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users?role=&page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["users"],
+              "query": [
+                { "key": "role", "value": "", "description": "super_admin|admin|sme|intern" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
           }
         },
         {
           "name": "Create User",
           "request": {
             "method": "POST",
-            "url": "{{base_url}}/users",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{access_token}}" },
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Test Intern\",\n  \"email\": \"intern@test.com\",\n  \"password\": \"Intern@123\",\n  \"role\": \"intern\"\n}"
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"TempPass123!\",\n  \"role\": \"sme\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe Updated\",\n  \"role\": \"admin\",\n  \"isActive\": true\n}"
+            },
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] }
+          }
+        },
+        {
+          "name": "Delete User (Soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["users", "{{user_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Master Data",
+      "item": [
+        {
+          "name": "List Boards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/master/boards", "host": ["{{base_url}}"], "path": ["master", "boards"] }
+          }
+        },
+        {
+          "name": "Create Board",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"CBSE\",\n  \"code\": \"CBSE\"\n}" },
+            "url": { "raw": "{{base_url}}/master/boards", "host": ["{{base_url}}"], "path": ["master", "boards"] }
+          }
+        },
+        {
+          "name": "List Classes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/master/classes?boardId=",
+              "host": ["{{base_url}}"], "path": ["master", "classes"],
+              "query": [{ "key": "boardId", "value": "" }]
             }
+          }
+        },
+        {
+          "name": "Create Class",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"boardId\": \"<board_id>\",\n  \"name\": \"Grade 10\"\n}" },
+            "url": { "raw": "{{base_url}}/master/classes", "host": ["{{base_url}}"], "path": ["master", "classes"] }
+          }
+        },
+        {
+          "name": "List Subjects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/master/subjects?classId=",
+              "host": ["{{base_url}}"], "path": ["master", "subjects"],
+              "query": [{ "key": "classId", "value": "" }]
+            }
+          }
+        },
+        {
+          "name": "Create Subject",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"classId\": \"<class_id>\",\n  \"name\": \"Mathematics\",\n  \"code\": \"MATH\"\n}" },
+            "url": { "raw": "{{base_url}}/master/subjects", "host": ["{{base_url}}"], "path": ["master", "subjects"] }
+          }
+        },
+        {
+          "name": "List Chapters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/master/chapters?subjectId={{subject_id}}",
+              "host": ["{{base_url}}"], "path": ["master", "chapters"],
+              "query": [{ "key": "subjectId", "value": "{{subject_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Create Chapter",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"subjectId\": \"{{subject_id}}\",\n  \"name\": \"Quadratic Equations\",\n  \"chapterNo\": 4\n}" },
+            "url": { "raw": "{{base_url}}/master/chapters", "host": ["{{base_url}}"], "path": ["master", "chapters"] }
+          }
+        },
+        {
+          "name": "List Concepts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/master/concepts?chapterId={{chapter_id}}",
+              "host": ["{{base_url}}"], "path": ["master", "concepts"],
+              "query": [{ "key": "chapterId", "value": "{{chapter_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Create Concept",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"chapterId\": \"{{chapter_id}}\",\n  \"name\": \"Discriminant\",\n  \"uuid\": \"disc-001\",\n  \"shortNote\": \"b\\u00b2-4ac determines nature of roots\"\n}" },
+            "url": { "raw": "{{base_url}}/master/concepts", "host": ["{{base_url}}"], "path": ["master", "concepts"] }
+          }
+        },
+        {
+          "name": "Update Concept",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"shortNote\": \"Updated short note\"\n}" },
+            "url": { "raw": "{{base_url}}/master/concepts/{{concept_id}}", "host": ["{{base_url}}"], "path": ["master", "concepts", "{{concept_id}}"] }
+          }
+        },
+        {
+          "name": "List Question Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/master/question-types", "host": ["{{base_url}}"], "path": ["master", "question-types"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Prompt Library",
+      "item": [
+        {
+          "name": "List Prompts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/prompts?subjectId=&page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["prompts"],
+              "query": [
+                { "key": "subjectId", "value": "" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Prompt",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/prompts/{{prompt_id}}", "host": ["{{base_url}}"], "path": ["prompts", "{{prompt_id}}"] }
+          }
+        },
+        {
+          "name": "List Prompt Versions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/prompts/{{prompt_id}}/versions", "host": ["{{base_url}}"], "path": ["prompts", "{{prompt_id}}", "versions"] }
+          }
+        },
+        {
+          "name": "Get Prompt Version",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/prompts/{{prompt_id}}/versions/{{prompt_version_id}}", "host": ["{{base_url}}"], "path": ["prompts", "{{prompt_id}}", "versions", "{{prompt_version_id}}"] }
+          }
+        },
+        {
+          "name": "Create Prompt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('prompt_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Science MCQ Prompt\",\n  \"subjectId\": \"{{subject_id}}\",\n  \"description\": \"Generates MCQ questions for science subjects\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/prompts", "host": ["{{base_url}}"], "path": ["prompts"] }
+          }
+        },
+        {
+          "name": "Add Prompt Version",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('prompt_version_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Generate {{questionCount}} {{questionType}} questions for: {{topic}}. Difficulty: {{difficulty}}.\",\n  \"notes\": \"Initial version\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/prompts/{{prompt_id}}/versions", "host": ["{{base_url}}"], "path": ["prompts", "{{prompt_id}}", "versions"] }
+          }
+        },
+        {
+          "name": "Publish Prompt Version",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"published\"\n}" },
+            "url": { "raw": "{{base_url}}/prompts/{{prompt_id}}/versions/{{prompt_version_id}}/status", "host": ["{{base_url}}"], "path": ["prompts", "{{prompt_id}}", "versions", "{{prompt_version_id}}", "status"] }
+          }
+        },
+        {
+          "name": "Archive Prompt Version",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"archived\"\n}" },
+            "url": { "raw": "{{base_url}}/prompts/{{prompt_id}}/versions/{{prompt_version_id}}/status", "host": ["{{base_url}}"], "path": ["prompts", "{{prompt_id}}", "versions", "{{prompt_version_id}}", "status"] }
+          }
+        },
+        {
+          "name": "Archive Prompt",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{base_url}}/prompts/{{prompt_id}}", "host": ["{{base_url}}"], "path": ["prompts", "{{prompt_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Schemas",
+      "item": [
+        {
+          "name": "List Schemas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/schemas", "host": ["{{base_url}}"], "path": ["schemas"] }
+          }
+        },
+        {
+          "name": "Get Schema",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/schemas/{{schema_id}}", "host": ["{{base_url}}"], "path": ["schemas", "{{schema_id}}"] }
+          }
+        },
+        {
+          "name": "Create Schema",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('schema_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"question-schema-v1\",\n  \"description\": \"Base question JSON schema\"\n}" },
+            "url": { "raw": "{{base_url}}/schemas", "host": ["{{base_url}}"], "path": ["schemas"] }
+          }
+        },
+        {
+          "name": "Add Schema Version",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"definition\": {\n    \"$schema\": \"http://json-schema.org/draft-07/schema#\",\n    \"type\": \"object\",\n    \"required\": [\"question_text\", \"question_type\"]\n  }\n}"
+            },
+            "url": { "raw": "{{base_url}}/schemas/{{schema_id}}/versions", "host": ["{{base_url}}"], "path": ["schemas", "{{schema_id}}", "versions"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subject Profiles",
+      "item": [
+        {
+          "name": "List Subject Profiles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/subject-profiles", "host": ["{{base_url}}"], "path": ["subject-profiles"] }
+          }
+        },
+        {
+          "name": "Get Subject Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/subject-profiles/{{subject_id}}", "host": ["{{base_url}}"], "path": ["subject-profiles", "{{subject_id}}"] }
+          }
+        },
+        {
+          "name": "Upsert Subject Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": \"{{subject_id}}\",\n  \"promptVersionId\": \"{{prompt_version_id}}\",\n  \"schemaVersionId\": \"\",\n  \"maxConcepts\": 3,\n  \"generationProvider\": \"manual_qwen\",\n  \"diagramEnabled\": false,\n  \"passageEnabled\": false,\n  \"conceptEnabled\": true,\n  \"solutionStepsEnabled\": false\n}"
+            },
+            "url": { "raw": "{{base_url}}/subject-profiles", "host": ["{{base_url}}"], "path": ["subject-profiles"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Field Registry",
+      "item": [
+        {
+          "name": "List Fields",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/field-registry?activeOnly=true",
+              "host": ["{{base_url}}"], "path": ["field-registry"],
+              "query": [{ "key": "activeOnly", "value": "true" }]
+            }
+          }
+        },
+        {
+          "name": "List Fields by Mode",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/field-registry/by-mode/required", "host": ["{{base_url}}"], "path": ["field-registry", "by-mode", "required"] }
+          }
+        },
+        {
+          "name": "Create Field",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fieldName\": \"is_ncert\",\n  \"label\": \"NCERT Question\",\n  \"mode\": \"optional\",\n  \"dataType\": \"boolean\",\n  \"sortOrder\": 10\n}"
+            },
+            "url": { "raw": "{{base_url}}/field-registry", "host": ["{{base_url}}"], "path": ["field-registry"] }
+          }
+        },
+        {
+          "name": "Update Field",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"mode\": \"required\"\n}" },
+            "url": {
+              "raw": "{{base_url}}/field-registry/:id",
+              "host": ["{{base_url}}"], "path": ["field-registry", ":id"],
+              "variable": [{ "key": "id", "value": "" }]
+            }
+          }
+        },
+        {
+          "name": "Deactivate Field",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/field-registry/:id",
+              "host": ["{{base_url}}"], "path": ["field-registry", ":id"],
+              "variable": [{ "key": "id", "value": "" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Batches",
+      "item": [
+        {
+          "name": "List Batches",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/batches?status=&subjectId=&page=1&limit=20",
+              "host": ["{{base_url}}"], "path": ["batches"],
+              "query": [
+                { "key": "status", "value": "", "description": "e.g. validation_complete" },
+                { "key": "subjectId", "value": "" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Batch",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}"] }
+          }
+        },
+        {
+          "name": "Create Batch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.id) pm.collectionVariables.set('batch_id', res.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Math MCQ Batch 01\",\n  \"subjectId\": \"{{subject_id}}\",\n  \"chapterId\": \"{{chapter_id}}\",\n  \"questionTypeId\": \"<question_type_id>\",\n  \"difficulty\": \"medium\",\n  \"questionCount\": 20,\n  \"notes\": \"First batch for testing\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/batches", "host": ["{{base_url}}"], "path": ["batches"] }
+          }
+        },
+        {
+          "name": "Update Batch",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Math MCQ Batch 01 (revised)\",\n  \"notes\": \"Updated notes\"\n}" },
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}"] }
+          }
+        },
+        {
+          "name": "Mark Generation Complete",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/mark-generation-complete", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "mark-generation-complete"] }
+          }
+        },
+        {
+          "name": "Send to Review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"smeId\": \"{{user_id}}\"\n}" },
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/send-to-review", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "send-to-review"] }
+          }
+        },
+        {
+          "name": "Get Prompt Preview",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/prompt-preview", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "prompt-preview"] }
+          }
+        },
+        {
+          "name": "Sync to Production",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/sync", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "sync"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Import & Questions",
+      "item": [
+        {
+          "name": "Import Questions",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rawJson\": [\n    {\n      \"question_text\": \"What is 2 + 2?\",\n      \"question_type\": \"MCQ\",\n      \"marks\": 1,\n      \"difficulty\": \"easy\",\n      \"bloom_level\": \"Remember\",\n      \"explanation\": \"Basic arithmetic.\",\n      \"options\": [\n        { \"key\": \"A\", \"text\": \"3\" },\n        { \"key\": \"B\", \"text\": \"4\" },\n        { \"key\": \"C\", \"text\": \"5\" },\n        { \"key\": \"D\", \"text\": \"6\" }\n      ],\n      \"correct_option\": \"B\"\n    }\n  ],\n  \"mode\": \"append\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/import", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "import"] }
+          }
+        },
+        {
+          "name": "Revalidate Batch",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/revalidate", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "revalidate"] }
+          }
+        },
+        {
+          "name": "List Batch Questions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/batches/{{batch_id}}/questions?status=",
+              "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "questions"],
+              "query": [{ "key": "status", "value": "", "description": "Comma-separated: validated,diagram_pending,diagram_done" }]
+            }
+          }
+        },
+        {
+          "name": "Get Question",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/questions/{{question_id}}", "host": ["{{base_url}}"], "path": ["questions", "{{question_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Diagram Pipeline",
+      "item": [
+        {
+          "name": "List Batch Diagram Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/diagrams", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "diagrams"] }
+          }
+        },
+        {
+          "name": "Get Batch Diagram Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/diagrams/summary", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "diagrams", "summary"] }
+          }
+        },
+        {
+          "name": "Get Diagram Job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/diagrams/{{diagram_job_id}}", "host": ["{{base_url}}"], "path": ["diagrams", "{{diagram_job_id}}"] }
+          }
+        },
+        {
+          "name": "Upload Diagram",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "diagram", "type": "file", "src": "", "description": "PNG/JPG/SVG file — max 5 MB" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/diagrams/{{diagram_job_id}}/upload", "host": ["{{base_url}}"], "path": ["diagrams", "{{diagram_job_id}}", "upload"] }
+          }
+        },
+        {
+          "name": "Mark Diagram Failed",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"errorMessage\": \"Source file not available\"\n}" },
+            "url": { "raw": "{{base_url}}/diagrams/{{diagram_job_id}}/fail", "host": ["{{base_url}}"], "path": ["diagrams", "{{diagram_job_id}}", "fail"] }
+          }
+        },
+        {
+          "name": "Mark Batch Diagrams Complete",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/diagrams/mark-complete", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "diagrams", "mark-complete"] }
+          }
+        },
+        {
+          "name": "Delete Diagram Asset",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/diagram-assets/:assetId",
+              "host": ["{{base_url}}"], "path": ["diagram-assets", ":assetId"],
+              "variable": [{ "key": "assetId", "value": "" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SME Review",
+      "item": [
+        {
+          "name": "Get Batch for Review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/review", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "review"] }
+          }
+        },
+        {
+          "name": "Get Review Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/review/stats", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "review", "stats"] }
+          }
+        },
+        {
+          "name": "Review Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (res.questionId) pm.collectionVariables.set('question_id', res.questionId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\",\n  \"notes\": \"\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/questions/{{question_id}}/review", "host": ["{{base_url}}"], "path": ["questions", "{{question_id}}", "review"] }
+          }
+        },
+        {
+          "name": "Submit Batch Review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"batchNotes\": \"All questions reviewed and approved\"\n}" },
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/review/submit", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "review", "submit"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Export & Sync",
+      "item": [
+        {
+          "name": "List Exports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/exports", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "exports"] }
+          }
+        },
+        {
+          "name": "Trigger JSON Export",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/exports/json", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "exports", "json"] }
+          }
+        },
+        {
+          "name": "Trigger Excel Export",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/exports/excel", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "exports", "excel"] }
+          }
+        },
+        {
+          "name": "Trigger PDF Export",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/exports/pdf", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "exports", "pdf"] }
+          }
+        },
+        {
+          "name": "Mark Export Complete",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/exports/mark-complete", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "exports", "mark-complete"] }
+          }
+        },
+        {
+          "name": "Get Final JSON",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/batches/{{batch_id}}/final-json", "host": ["{{base_url}}"], "path": ["batches", "{{batch_id}}", "final-json"] }
           }
         }
       ]
@@ -80,8 +842,10 @@
         {
           "name": "Health Check",
           "request": {
+            "auth": { "type": "noauth" },
             "method": "GET",
-            "url": "{{base_url}}/health"
+            "header": [],
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
           }
         }
       ]
