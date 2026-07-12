@@ -240,12 +240,24 @@ export async function listBatchQuestions(batchId: string, status?: string) {
   const batch = await prisma.batch.findUnique({ where: { id: batchId } })
   if (!batch) throw Errors.notFound('Batch')
 
+  // Accept comma-separated status values: ?status=diagram_pending,diagram_done
+  const statusFilter = status
+    ? status.includes(',')
+      ? { status: { in: status.split(',').map((s) => s.trim()) } }
+      : { status }
+    : {}
+
   return prisma.question.findMany({
-    where: { batchId, ...(status ? { status } : {}) },
+    where: { batchId, ...statusFilter },
     include: {
       concept: { select: { id: true, name: true, uuid: true } },
       questionType: { select: { id: true, code: true, label: true } },
-      _count: { select: { smeReviews: true, diagramJobs: true } },
+      diagramJobs: {
+        include: { assets: { where: { isActive: true }, orderBy: { version: 'desc' }, take: 1 } },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
+      _count: { select: { smeReviews: true } },
     },
     orderBy: { createdAt: 'asc' },
   })

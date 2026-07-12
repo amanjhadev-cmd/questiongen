@@ -19,7 +19,7 @@ router.post('/batches/:batchId/diagrams/mark-complete', requireRole('super_admin
 
 // Individual diagram job endpoints
 router.get('/diagrams/:jobId', ctrl.getDiagramJob)
-router.post('/diagrams/:jobId/upload', requireRole('super_admin', 'admin', 'intern'), upload.single('file'), ctrl.uploadDiagram)
+router.post('/diagrams/:jobId/upload', requireRole('super_admin', 'admin', 'intern'), upload.single('diagram'), ctrl.uploadDiagram)
 router.post('/diagrams/:jobId/fail', requireRole('super_admin', 'admin'), ctrl.markDiagramFailed)
 
 // Diagram asset management

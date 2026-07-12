@@ -11,9 +11,12 @@ interface SubjectProfileDetail extends SubjectProfile {
 
 interface FieldEntry {
   id: string
-  fieldKey: string
+  fieldName: string
+  label: string
   mode: 'required' | 'optional' | 'disabled' | 'auto'
-  description: string
+  dataType: string
+  isActive: boolean
+  sortOrder: number
 }
 
 type Tab = 'profiles' | 'fields'
@@ -32,18 +35,16 @@ export default function SettingsPage() {
     promptVersionId: '',
     schemaVersionId: '',
     diagramEnabled: false,
-    ncertEnabled: false,
+    passageEnabled: false,
+    conceptEnabled: false,
     solutionStepsEnabled: false,
-    formulaEnabled: false,
-    marksEnabled: true,
-    isNcertEnabled: false,
   })
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileError, setProfileError] = useState('')
 
   // Field form
   const [showFieldForm, setShowFieldForm] = useState(false)
-  const [fieldForm, setFieldForm] = useState({ fieldKey: '', mode: 'optional', description: '' })
+  const [fieldForm, setFieldForm] = useState({ fieldName: '', label: '', mode: 'optional', dataType: 'string', sortOrder: 0 })
   const [savingField, setSavingField] = useState(false)
   const [fieldError, setFieldError] = useState('')
 
@@ -87,7 +88,7 @@ export default function SettingsPage() {
       await api.post('/field-registry', fieldForm)
       await loadFields()
       setShowFieldForm(false)
-      setFieldForm({ fieldKey: '', mode: 'optional', description: '' })
+      setFieldForm({ fieldName: '', label: '', mode: 'optional', dataType: 'string', sortOrder: 0 })
     } catch (err: unknown) {
       setFieldError(err instanceof Error ? err.message : 'Failed')
     }
@@ -154,10 +155,9 @@ export default function SettingsPage() {
               <div className="flex flex-wrap gap-4">
                 {[
                   { key: 'diagramEnabled', label: 'Diagrams' },
-                  { key: 'ncertEnabled', label: 'NCERT' },
+                  { key: 'passageEnabled', label: 'Passage' },
+                  { key: 'conceptEnabled', label: 'Concept Mapping' },
                   { key: 'solutionStepsEnabled', label: 'Solution Steps' },
-                  { key: 'formulaEnabled', label: 'Formulas' },
-                  { key: 'marksEnabled', label: 'Marks' },
                 ].map(({ key, label }) => (
                   <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
                     <input
@@ -187,10 +187,9 @@ export default function SettingsPage() {
                 <div className="flex flex-wrap gap-2">
                   {[
                     { key: 'diagramEnabled', label: 'Diagrams' },
-                    { key: 'ncertEnabled', label: 'NCERT' },
+                    { key: 'passageEnabled', label: 'Passage' },
+                    { key: 'conceptEnabled', label: 'Concept Mapping' },
                     { key: 'solutionStepsEnabled', label: 'Solution Steps' },
-                    { key: 'formulaEnabled', label: 'Formulas' },
-                    { key: 'marksEnabled', label: 'Marks' },
                   ].map(({ key, label }) => (
                     <span
                       key={key}
@@ -220,8 +219,12 @@ export default function SettingsPage() {
               <h2 className="text-base font-semibold">New Field Registry Entry</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Field Key *</label>
-                  <input className="input font-mono text-xs" value={fieldForm.fieldKey} onChange={(e) => setFieldForm((p) => ({ ...p, fieldKey: e.target.value }))} placeholder="e.g. is_ncert" required />
+                  <label className="label">Field Name *</label>
+                  <input className="input font-mono text-xs" value={fieldForm.fieldName} onChange={(e) => setFieldForm((p) => ({ ...p, fieldName: e.target.value }))} placeholder="e.g. is_ncert" required />
+                </div>
+                <div>
+                  <label className="label">Label *</label>
+                  <input className="input" value={fieldForm.label} onChange={(e) => setFieldForm((p) => ({ ...p, label: e.target.value }))} placeholder="Human-readable label" required />
                 </div>
                 <div>
                   <label className="label">Mode *</label>
@@ -229,9 +232,11 @@ export default function SettingsPage() {
                     {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
-                <div className="col-span-2">
-                  <label className="label">Description</label>
-                  <input className="input" value={fieldForm.description} onChange={(e) => setFieldForm((p) => ({ ...p, description: e.target.value }))} />
+                <div>
+                  <label className="label">Data Type *</label>
+                  <select className="input" value={fieldForm.dataType} onChange={(e) => setFieldForm((p) => ({ ...p, dataType: e.target.value }))}>
+                    {['string', 'number', 'boolean', 'array', 'object'].map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
                 </div>
               </div>
               {fieldError && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">{fieldError}</p>}
@@ -245,8 +250,8 @@ export default function SettingsPage() {
           <div className="card divide-y divide-gray-50">
             {fields.map((f) => (
               <div key={f.id} className="px-5 py-3 flex items-center gap-4">
-                <code className="text-xs font-mono text-brand bg-brand-muted px-2 py-0.5 rounded flex-shrink-0">{f.fieldKey}</code>
-                <p className="text-sm text-gray-600 flex-1">{f.description || '—'}</p>
+                <code className="text-xs font-mono text-brand bg-brand-muted px-2 py-0.5 rounded flex-shrink-0">{f.fieldName}</code>
+                <p className="text-sm text-gray-600 flex-1">{f.label || '—'}</p>
                 <select
                   className="input !w-36 text-xs py-1"
                   value={f.mode}

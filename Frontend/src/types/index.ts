@@ -51,6 +51,7 @@ export interface SubjectProfile {
   passageEnabled: boolean
   conceptEnabled: boolean
   solutionStepsEnabled: boolean
+  fieldRegistryJson: unknown
   updatedAt: string
 }
 
