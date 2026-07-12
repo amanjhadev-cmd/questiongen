@@ -7,8 +7,7 @@ addFormats(ajv)
 // Inline schema (mirrors Assets/json-schemas/question-schema-v2.json version 2)
 const QUESTION_SCHEMA = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'QuestionSchema',
-  version: 2,
+  title: 'QuestionSchema v2',
   type: 'object',
   required: ['question_text', 'question_type', 'marks', 'difficulty', 'bloom_level', 'explanation'],
   properties: {
@@ -40,8 +39,8 @@ const QUESTION_SCHEMA = {
   if: { properties: { question_type: { const: 'MCQ' } } },
   then: { required: ['options', 'correct_option'] },
   allOf: [
-    { if: { properties: { diagram_required: { const: true } } }, then: { required: ['diagram_description'] } },
-    { if: { properties: { is_ncert: { const: true } } }, then: { required: ['ncert_page'] } },
+    { if: { required: ['diagram_required'], properties: { diagram_required: { const: true } } }, then: { required: ['diagram_description'] } },
+    { if: { required: ['is_ncert'], properties: { is_ncert: { const: true } } }, then: { required: ['ncert_page'] } },
   ],
 }
 

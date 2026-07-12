@@ -73,7 +73,8 @@ export async function buildFinalJson(batchId: string): Promise<FinalQuestion[]> 
   const subject = batch.subject.name
   const chapterUuid = batch.chapter?.id ?? null
 
-  return batch.questions.map((q) => {
+  type BatchQuestion = typeof batch.questions[0]
+  return batch.questions.map((q: BatchQuestion) => {
     const content = q.content as Record<string, unknown>
     const injectedMeta = q.injectedMetadata as Record<string, unknown>
 

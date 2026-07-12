@@ -63,7 +63,7 @@ export async function importQuestions(
 
   // Collect allowed concept UUIDs for this chapter (if concept mapping enabled)
   const allowedConceptUuids: Set<string> | undefined = profile.conceptEnabled && batch.chapter
-    ? new Set(batch.chapter.concepts.map((c) => c.uuid as string))
+    ? new Set(batch.chapter.concepts.map((c: { uuid: unknown }) => c.uuid as string))
     : undefined
 
   const validationOptions = {
@@ -187,7 +187,7 @@ export async function revalidateBatch(batchId: string): Promise<ImportResult> {
 
   const profile = batch.subject.subjectProfile!
   const allowedConceptUuids: Set<string> | undefined = profile.conceptEnabled && batch.chapter
-    ? new Set(batch.chapter.concepts.map((c) => c.uuid as string))
+    ? new Set(batch.chapter.concepts.map((c: { uuid: unknown }) => c.uuid as string))
     : undefined
 
   const validationOptions = {
