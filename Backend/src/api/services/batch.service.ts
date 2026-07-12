@@ -36,8 +36,14 @@ export async function listBatches(
   const { page, limit } = pagination
   const skip = getSkip(pagination)
 
+  const statusFilter = query.status
+    ? query.status.includes(',')
+      ? { status: { in: query.status.split(',').map((s) => s.trim()) } }
+      : { status: query.status }
+    : {}
+
   const where = {
-    ...(query.status ? { status: query.status } : {}),
+    ...statusFilter,
     ...(query.subjectId ? { subjectId: query.subjectId } : {}),
     ...(query.createdById ? { createdById: query.createdById } : {}),
   }

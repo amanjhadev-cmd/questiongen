@@ -11,7 +11,7 @@ export default function ReviewQueuePage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get<{ data: Batch[] }>('/batches?status=validation_complete&limit=50')
+    api.get<{ data: Batch[] }>('/batches?status=validation_complete,diagram_complete&limit=50')
       .then((res) => setBatches(res.data))
       .catch(console.error)
       .finally(() => setLoading(false))

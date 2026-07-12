@@ -17,8 +17,8 @@ export default function UsersPage() {
 
   async function load() {
     try {
-      const data = await api.get<User[]>('/users')
-      setUsers(data)
+      const res = await api.get<{ data: User[] }>('/users')
+      setUsers(res.data)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }

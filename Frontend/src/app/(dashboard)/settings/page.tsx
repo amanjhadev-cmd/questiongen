@@ -71,7 +71,7 @@ export default function SettingsPage() {
     setProfileError('')
     setSavingProfile(true)
     try {
-      await api.post('/subject-profiles', profileForm)
+      await api.put('/subject-profiles', profileForm)
       await loadProfiles()
       setShowProfileForm(false)
     } catch (err: unknown) {
