@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { api } from '@/lib/api'
 import { statusColor, formatDate } from '@/lib/utils'
 import type { Prompt, PromptVersion } from '@/types'
@@ -112,6 +113,9 @@ export default function PromptDetailPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400">{formatDate(v.createdAt)}</span>
+                <Link href={`/prompts/${id}/versions/${v.id}`} className="btn-secondary text-xs py-1">
+                  View
+                </Link>
                 {v.status === 'draft' && (
                   <button
                     onClick={() => updateStatus(v.id, 'published')}

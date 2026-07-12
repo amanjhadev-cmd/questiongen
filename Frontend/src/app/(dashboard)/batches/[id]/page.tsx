@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import { statusColor, statusLabel, formatDate } from '@/lib/utils'
 import type { Batch, Question } from '@/types'
-import { CheckCircle, XCircle, AlertCircle, Image, Upload, FileJson, FileSpreadsheet, File, ImageIcon } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, Upload, FileJson, ImageIcon } from 'lucide-react'
 
 export default function BatchDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -33,24 +33,6 @@ export default function BatchDetailPage() {
     setAction('')
   }
 
-  async function triggerExport(format: 'json' | 'excel' | 'pdf') {
-    setAction(format)
-    try {
-      await api.post(`/batches/${id}/exports/${format}`)
-      alert(`${format.toUpperCase()} export started. Refresh to see status.`)
-    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Export failed') }
-    setAction('')
-  }
-
-  async function syncToN8n() {
-    setAction('sync')
-    try {
-      await api.post(`/batches/${id}/sync`)
-      const updated = await api.get<Batch>(`/batches/${id}`)
-      setBatch(updated)
-    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Sync failed') }
-    setAction('')
-  }
 
   if (loading) return <div className="p-8 text-gray-400 text-sm">Loading…</div>
   if (!batch) return <div className="p-8 text-red-500 text-sm">Batch not found.</div>
@@ -149,23 +131,21 @@ export default function BatchDetailPage() {
             )}
 
             {batch.status === 'sme_review_complete' && (
-              <div className="space-y-2">
-                <button onClick={() => triggerExport('json')} disabled={!!action} className="btn-secondary w-full justify-center text-sm">
-                  <FileJson size={15} /> Export JSON
-                </button>
-                <button onClick={() => triggerExport('excel')} disabled={!!action} className="btn-secondary w-full justify-center text-sm">
-                  <FileSpreadsheet size={15} /> Export Excel
-                </button>
-                <button onClick={() => triggerExport('pdf')} disabled={!!action} className="btn-secondary w-full justify-center text-sm">
-                  <File size={15} /> Export PDF
-                </button>
-              </div>
+              <Link href={`/batches/${id}/export`} className="btn-primary w-full justify-center text-sm">
+                <FileJson size={15} /> Manage Exports
+              </Link>
             )}
 
             {batch.status === 'export_complete' && (
-              <button onClick={syncToN8n} disabled={action === 'sync'} className="btn-primary w-full justify-center text-sm">
-                {action === 'sync' ? 'Syncing…' : '🔄 Sync to Production'}
-              </button>
+              <Link href={`/batches/${id}/export`} className="btn-primary w-full justify-center text-sm">
+                <Upload size={15} /> Sync to Production
+              </Link>
+            )}
+
+            {batch.status === 'synced' && (
+              <Link href={`/batches/${id}/export`} className="btn-secondary w-full justify-center text-sm">
+                <CheckCircle size={15} /> View Exports
+              </Link>
             )}
           </div>
         </div>
