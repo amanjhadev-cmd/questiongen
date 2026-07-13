@@ -1,4 +1,5 @@
 'use client'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
@@ -27,7 +28,16 @@ const navItems = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user, logout, refreshSession } = useAuth()
+
+  useEffect(() => {
+    if (!user) {
+      refreshSession().then((ok) => {
+        if (!ok) router.replace('/login')
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleLogout() {
     await logout()
