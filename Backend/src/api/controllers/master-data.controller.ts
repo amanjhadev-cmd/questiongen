@@ -15,6 +15,18 @@ export async function createBoard(req: Request, res: Response, next: NextFunctio
   } catch (e) { next(e) }
 }
 
+export async function updateBoard(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.updateBoard(req.params.id, req.body.name))
+  } catch (e) { next(e) }
+}
+
+export async function deleteBoard(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.deleteBoard(req.params.id))
+  } catch (e) { next(e) }
+}
+
 // ── Classes ───────────────────────────────────────────────────────────────────
 
 export async function listClasses(req: Request, res: Response, next: NextFunction) {
@@ -23,10 +35,28 @@ export async function listClasses(req: Request, res: Response, next: NextFunctio
   } catch (e) { next(e) }
 }
 
+export async function getClass(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.getClass(req.params.id))
+  } catch (e) { next(e) }
+}
+
 export async function createClass(req: Request, res: Response, next: NextFunction) {
   try {
     const { boardId, name } = req.body
     res.status(201).json(await svc.createClass(boardId, name))
+  } catch (e) { next(e) }
+}
+
+export async function updateClass(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.updateClass(req.params.id, req.body.name))
+  } catch (e) { next(e) }
+}
+
+export async function deleteClass(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.deleteClass(req.params.id))
   } catch (e) { next(e) }
 }
 
@@ -51,6 +81,19 @@ export async function createSubject(req: Request, res: Response, next: NextFunct
   } catch (e) { next(e) }
 }
 
+export async function updateSubject(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { name, code } = req.body
+    res.json(await svc.updateSubject(req.params.id, { name, code }))
+  } catch (e) { next(e) }
+}
+
+export async function deleteSubject(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.deleteSubject(req.params.id))
+  } catch (e) { next(e) }
+}
+
 // ── Chapters ──────────────────────────────────────────────────────────────────
 
 export async function listChapters(req: Request, res: Response, next: NextFunction) {
@@ -69,6 +112,19 @@ export async function createChapter(req: Request, res: Response, next: NextFunct
   try {
     const { subjectId, name, chapterNo } = req.body
     res.status(201).json(await svc.createChapter(subjectId, name, chapterNo))
+  } catch (e) { next(e) }
+}
+
+export async function updateChapter(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { name, chapterNo } = req.body
+    res.json(await svc.updateChapter(req.params.id, { name, chapterNo }))
+  } catch (e) { next(e) }
+}
+
+export async function deleteChapter(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.deleteChapter(req.params.id))
   } catch (e) { next(e) }
 }
 
@@ -100,10 +156,36 @@ export async function updateConcept(req: Request, res: Response, next: NextFunct
   } catch (e) { next(e) }
 }
 
+export async function deleteConcept(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.deleteConcept(req.params.id))
+  } catch (e) { next(e) }
+}
+
 // ── Question Types ────────────────────────────────────────────────────────────
 
 export async function listQuestionTypes(req: Request, res: Response, next: NextFunction) {
   try {
     res.json(await svc.listQuestionTypes())
+  } catch (e) { next(e) }
+}
+
+export async function createQuestionType(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { code, label } = req.body
+    res.status(201).json(await svc.createQuestionType(code, label))
+  } catch (e) { next(e) }
+}
+
+export async function updateQuestionType(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { label, isActive } = req.body
+    res.json(await svc.updateQuestionType(req.params.id, { label, isActive }))
+  } catch (e) { next(e) }
+}
+
+export async function deleteQuestionType(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.deleteQuestionType(req.params.id))
   } catch (e) { next(e) }
 }

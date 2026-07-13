@@ -32,3 +32,33 @@ export const updateConceptSchema = z.object({
   name: z.string().min(1).max(300).optional(),
   shortNote: z.string().max(1000).optional(),
 })
+
+// ── Update schemas for edit support ─────────────────────────────────────────────
+export const updateBoardSchema = z.object({
+  name: z.string().min(1).max(100),
+})
+
+export const updateClassSchema = z.object({
+  name: z.string().min(1).max(100),
+})
+
+export const updateSubjectSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  code: z.string().min(2).max(20).toUpperCase().optional(),
+})
+
+export const updateChapterSchema = z.object({
+  name: z.string().min(1).max(300).optional(),
+  chapterNo: z.number().int().min(1).max(999).optional(),
+})
+
+// ── Question Types ──────────────────────────────────────────────────────────────
+export const createQuestionTypeSchema = z.object({
+  code: z.string().min(1).max(20).toUpperCase(),
+  label: z.string().min(1).max(100),
+})
+
+export const updateQuestionTypeSchema = z.object({
+  label: z.string().min(1).max(100).optional(),
+  isActive: z.boolean().optional(),
+})

@@ -25,10 +25,28 @@ model User {
   smeReviews       SmeReview[]
   exports          Export[]
   questionVersions QuestionVersion[]
+  smeSubjects      SmeSubject[]
 
   @@index([email])
   @@index([role])
   @@map("users")
+}
+
+// Scopes an SME to one or more subjects. Combined with per-batch Batch.assignedTo,
+// an SME sees batches whose subject is assigned to them OR that are assigned directly.
+model SmeSubject {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  subjectId String   @map("subject_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subjectId])
+  @@index([userId])
+  @@index([subjectId])
+  @@map("sme_subjects")
 }
 
 model Board {
@@ -66,6 +84,7 @@ model Subject {
   prompts        Prompt[]
   batches        Batch[]
   subjectProfile SubjectProfile?
+  smeSubjects    SmeSubject[]
 
   @@unique([classId, code])
   @@index([classId])
