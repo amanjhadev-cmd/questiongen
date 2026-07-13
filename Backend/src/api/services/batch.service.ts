@@ -31,6 +31,7 @@ const batchIncludes = {
 
 export async function listBatches(
   query: { page?: string; limit?: string; status?: string; subjectId?: string; createdById?: string },
+  scope?: { role: string; userId: string; subjectIds: string[] },
 ) {
   const pagination = getPaginationParams(query)
   const { page, limit } = pagination
@@ -42,10 +43,18 @@ export async function listBatches(
       : { status: query.status }
     : {}
 
+  // SME scoping: an SME sees batches whose subject is assigned to them OR that
+  // are directly assigned to them via Batch.assignedTo. Other roles see everything.
+  const scopeFilter =
+    scope && scope.role === 'sme'
+      ? { OR: [{ subjectId: { in: scope.subjectIds } }, { assignedTo: scope.userId }] }
+      : {}
+
   const where = {
     ...statusFilter,
     ...(query.subjectId ? { subjectId: query.subjectId } : {}),
     ...(query.createdById ? { createdById: query.createdById } : {}),
+    ...scopeFilter,
   }
 
   const [data, total] = await Promise.all([

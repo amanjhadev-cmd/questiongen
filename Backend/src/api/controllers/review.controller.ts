@@ -1,9 +1,14 @@
 import { Request, Response, NextFunction } from 'express'
 import * as svc from '../services/review.service'
+import { buildBatchScope, canAccessBatch } from '../services/scope.service'
+import { Errors } from '../../utils/app-error'
 
 export async function getBatchForReview(req: Request, res: Response, next: NextFunction) {
   try {
-    res.json(await svc.getBatchForReview(req.params.batchId))
+    const batch = await svc.getBatchForReview(req.params.batchId)
+    const scope = await buildBatchScope(req.user)
+    if (!canAccessBatch(scope, batch)) throw Errors.forbidden('You are not assigned to review this batch')
+    res.json(batch)
   } catch (e) { next(e) }
 }
 

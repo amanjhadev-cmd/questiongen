@@ -1,15 +1,21 @@
 import { Request, Response, NextFunction } from 'express'
 import * as svc from '../services/batch.service'
+import { buildBatchScope, canAccessBatch } from '../services/scope.service'
+import { Errors } from '../../utils/app-error'
 
 export async function listBatches(req: Request, res: Response, next: NextFunction) {
   try {
-    res.json(await svc.listBatches(req.query as Record<string, string>))
+    const scope = await buildBatchScope(req.user)
+    res.json(await svc.listBatches(req.query as Record<string, string>, scope))
   } catch (e) { next(e) }
 }
 
 export async function getBatch(req: Request, res: Response, next: NextFunction) {
   try {
-    res.json(await svc.getBatch(req.params.id))
+    const batch = await svc.getBatch(req.params.id)
+    const scope = await buildBatchScope(req.user)
+    if (!canAccessBatch(scope, batch)) throw Errors.forbidden('You do not have access to this batch')
+    res.json(batch)
   } catch (e) { next(e) }
 }
 

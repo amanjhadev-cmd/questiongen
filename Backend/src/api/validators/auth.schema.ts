@@ -17,3 +17,7 @@ export const updateUserSchema = z.object({
   role: z.enum(['super_admin', 'admin', 'sme', 'intern']).optional(),
   isActive: z.boolean().optional(),
 })
+
+export const setUserSubjectsSchema = z.object({
+  subjectIds: z.array(z.string().uuid()),
+})

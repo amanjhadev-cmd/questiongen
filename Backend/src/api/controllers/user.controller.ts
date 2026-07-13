@@ -37,3 +37,19 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
     next(err)
   }
 }
+
+export async function getUserSubjects(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ data: await userService.getUserSubjects(req.params.id) })
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function setUserSubjects(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    res.json({ data: await userService.setUserSubjects(req.params.id, req.body.subjectIds) })
+  } catch (err) {
+    next(err)
+  }
+}

@@ -5,6 +5,7 @@ export interface User {
   role: 'super_admin' | 'admin' | 'sme' | 'intern'
   isActive: boolean
   createdAt: string
+  subjects?: Array<Pick<Subject, 'id' | 'name' | 'code'>>
 }
 
 export interface Board { id: string; name: string }

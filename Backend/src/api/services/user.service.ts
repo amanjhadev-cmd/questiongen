@@ -9,7 +9,10 @@ export async function listUsers(query: { role?: string; page?: string; limit?: s
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+      select: {
+        id: true, name: true, email: true, role: true, isActive: true, createdAt: true,
+        smeSubjects: { select: { subject: { select: { id: true, name: true, code: true } } } },
+      },
       skip: getSkip(pagination),
       take: pagination.limit,
       orderBy: { createdAt: 'desc' },
@@ -17,7 +20,55 @@ export async function listUsers(query: { role?: string; page?: string; limit?: s
     prisma.user.count({ where }),
   ])
 
-  return { users, meta: buildMeta(total, pagination) }
+  // Flatten smeSubjects -> subjects for the client
+  type SubjectRef = { id: string; name: string; code: string }
+  const shaped = users.map((u: (typeof users)[number]) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    isActive: u.isActive,
+    createdAt: u.createdAt,
+    subjects: u.smeSubjects.map((s: { subject: SubjectRef }) => s.subject),
+  }))
+
+  return { users: shaped, meta: buildMeta(total, pagination) }
+}
+
+// ── SME subject scoping ─────────────────────────────────────────────────────────
+
+export async function getUserSubjects(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) throw Errors.notFound('User')
+  const rows = await prisma.smeSubject.findMany({
+    where: { userId },
+    include: { subject: { select: { id: true, name: true, code: true } } },
+  })
+  return rows.map((r: { subject: { id: string; name: string; code: string } }) => r.subject)
+}
+
+export async function setUserSubjects(userId: string, subjectIds: string[]) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) throw Errors.notFound('User')
+
+  // Replace the full set inside a transaction
+  await prisma.$transaction([
+    prisma.smeSubject.deleteMany({ where: { userId } }),
+    ...(subjectIds.length > 0
+      ? [prisma.smeSubject.createMany({
+          data: subjectIds.map((subjectId) => ({ userId, subjectId })),
+          skipDuplicates: true,
+        })]
+      : []),
+  ])
+
+  return getUserSubjects(userId)
+}
+
+// Returns the set of subjectIds an SME is scoped to (for batch filtering).
+export async function getSmeSubjectIds(userId: string): Promise<string[]> {
+  const rows = await prisma.smeSubject.findMany({ where: { userId }, select: { subjectId: true } })
+  return rows.map((r: { subjectId: string }) => r.subjectId)
 }
 
 export async function updateUser(
