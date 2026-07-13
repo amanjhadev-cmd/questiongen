@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { Errors } from '../../utils/app-error'
 
@@ -31,22 +32,56 @@ export async function getPrompt(id: string) {
   return prompt
 }
 
+function extractVariables(text: string): string[] {
+  const seen = new Set<string>()
+  const re = /\{\{(\w+)\}\}/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) seen.add(m[1])
+  return Array.from(seen)
+}
+
 export async function createPrompt(data: {
   name: string
   subjectId?: string
   description?: string
+  content?: string
+  variables?: string[]
   createdById: string
 }) {
-  return prisma.prompt.create({
-    data: {
-      name: data.name,
-      subjectId: data.subjectId ?? null,
-      description: data.description,
-      createdById: data.createdById,
-    },
-    include: {
-      subject: { select: { id: true, name: true, code: true } },
-    },
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const prompt = await tx.prompt.create({
+      data: {
+        name: data.name,
+        subjectId: data.subjectId ?? null,
+        description: data.description,
+        createdById: data.createdById,
+      },
+      include: {
+        subject: { select: { id: true, name: true, code: true } },
+      },
+    })
+
+    // When an initial template is supplied, create the first draft version.
+    if (data.content) {
+      await tx.promptVersion.create({
+        data: {
+          promptId: prompt.id,
+          versionNo: 1,
+          content: data.content,
+          variables: data.variables ?? extractVariables(data.content),
+          createdById: data.createdById,
+          status: 'draft',
+        },
+      })
+    }
+
+    return tx.prompt.findUnique({
+      where: { id: prompt.id },
+      include: {
+        subject: { select: { id: true, name: true, code: true } },
+        versions: { orderBy: { versionNo: 'asc' } },
+      },
+    })
   })
 }
 

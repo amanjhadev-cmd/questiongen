@@ -26,6 +26,8 @@ export default function SettingsPage() {
   const [profiles, setProfiles] = useState<SubjectProfileDetail[]>([])
   const [fields, setFields] = useState<FieldEntry[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
+  const [prompts, setPrompts] = useState<Array<{ id: string; name: string; versions: PromptVersion[] }>>([])
+  const [schemas, setSchemas] = useState<Array<{ id: string; name: string; versions: Array<{ id: string; versionNo: number }> }>>([])
   const [loading, setLoading] = useState(true)
 
   // Profile form
@@ -60,11 +62,33 @@ export default function SettingsPage() {
     const data = await api.get<Subject[]>('/master/subjects')
     setSubjects(data)
   }
+  async function loadPrompts() {
+    // /prompts only returns the latest version per prompt, so fetch each prompt's full versions
+    const list = await api.get<Array<{ id: string; name: string }>>('/prompts')
+    const full = await Promise.all(
+      list.map((p) => api.get<{ id: string; name: string; versions: PromptVersion[] }>(`/prompts/${p.id}`)),
+    )
+    setPrompts(full)
+  }
+  async function loadSchemas() {
+    const data = await api.get<Array<{ id: string; name: string; versions: Array<{ id: string; versionNo: number }> }>>('/schemas')
+    setSchemas(data)
+  }
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([loadProfiles(), loadFields(), loadSubjects()]).finally(() => setLoading(false))
+    Promise.all([loadProfiles(), loadFields(), loadSubjects(), loadPrompts(), loadSchemas()]).finally(() => setLoading(false))
   }, [])
+
+  // Flattened dropdown options
+  const publishedVersions = prompts.flatMap((p) =>
+    p.versions
+      .filter((v) => v.status === 'published')
+      .map((v) => ({ id: v.id, label: `${p.name} v${v.versionNo}` })),
+  )
+  const schemaVersionOptions = schemas.flatMap((s) =>
+    s.versions.map((v) => ({ id: v.id, label: `${s.name} v${v.versionNo}` })),
+  )
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault()
@@ -144,12 +168,20 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="label">Prompt Version ID *</label>
-                  <input className="input font-mono text-xs" value={profileForm.promptVersionId} onChange={(e) => setProfileForm((p) => ({ ...p, promptVersionId: e.target.value }))} placeholder="UUID of a published prompt version" required />
+                  <label className="label">Prompt Version *</label>
+                  <select className="input" value={profileForm.promptVersionId} onChange={(e) => setProfileForm((p) => ({ ...p, promptVersionId: e.target.value }))} required>
+                    <option value="">Select published prompt version…</option>
+                    {publishedVersions.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                  </select>
+                  {publishedVersions.length === 0 && <p className="text-xs text-orange-500 mt-1">No published prompt versions. Publish one in the Prompt Library first.</p>}
                 </div>
                 <div>
-                  <label className="label">Schema Version ID</label>
-                  <input className="input font-mono text-xs" value={profileForm.schemaVersionId} onChange={(e) => setProfileForm((p) => ({ ...p, schemaVersionId: e.target.value }))} placeholder="Optional — uses latest if omitted" />
+                  <label className="label">Schema Version *</label>
+                  <select className="input" value={profileForm.schemaVersionId} onChange={(e) => setProfileForm((p) => ({ ...p, schemaVersionId: e.target.value }))} required>
+                    <option value="">Select schema version…</option>
+                    {schemaVersionOptions.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                  </select>
+                  {schemaVersionOptions.length === 0 && <p className="text-xs text-orange-500 mt-1">No schema versions found. Seed the database first.</p>}
                 </div>
               </div>
               <div className="flex flex-wrap gap-4">

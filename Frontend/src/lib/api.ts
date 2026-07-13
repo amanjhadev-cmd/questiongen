@@ -32,8 +32,13 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ message: res.statusText }))
-    throw new ApiError(res.status, body.message ?? 'Request failed', body)
+    const body = await res.json().catch(() => ({ error: res.statusText }))
+    const message =
+      body.error ??
+      body.message ??
+      (body.details ? JSON.stringify(body.details) : null) ??
+      'Request failed'
+    throw new ApiError(res.status, message, body)
   }
 
   if (res.status === 204) return undefined as unknown as T

@@ -15,8 +15,10 @@ export async function getPrompt(req: Request, res: Response, next: NextFunction)
 
 export async function createPrompt(req: Request, res: Response, next: NextFunction) {
   try {
-    const { name, subjectId, description } = req.body
-    res.status(201).json(await svc.createPrompt({ name, subjectId, description, createdById: req.user!.userId }))
+    const { name, subjectId, description, content, variables } = req.body
+    res.status(201).json(
+      await svc.createPrompt({ name, subjectId, description, content, variables, createdById: req.user!.userId }),
+    )
   } catch (e) { next(e) }
 }
 

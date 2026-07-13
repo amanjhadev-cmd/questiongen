@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import type { Subject, Chapter, Concept, Board, QuestionType } from '@/types'
+import type { Subject, Chapter, Concept, Board, Class, QuestionType } from '@/types'
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react'
 
 type Tab = 'boards' | 'subjects' | 'chapters' | 'concepts' | 'question-types'
@@ -9,6 +9,7 @@ type Tab = 'boards' | 'subjects' | 'chapters' | 'concepts' | 'question-types'
 export default function MasterDataPage() {
   const [tab, setTab] = useState<Tab>('subjects')
   const [boards, setBoards] = useState<Board[]>([])
+  const [classes, setClasses] = useState<Class[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [concepts, setConcepts] = useState<Concept[]>([])
@@ -26,6 +27,10 @@ export default function MasterDataPage() {
   async function loadBoards() {
     const data = await api.get<Board[]>('/master/boards')
     setBoards(data)
+  }
+  async function loadClasses(boardId: string) {
+    const data = await api.get<Class[]>(`/master/classes?boardId=${boardId}`)
+    setClasses(data)
   }
   async function loadSubjects() {
     const data = await api.get<Subject[]>('/master/subjects')
@@ -51,12 +56,18 @@ export default function MasterDataPage() {
     setError('')
     const tasks: Promise<void>[] = []
     if (tab === 'boards') tasks.push(loadBoards())
-    if (tab === 'subjects') tasks.push(loadSubjects())
+    if (tab === 'subjects') { tasks.push(loadSubjects()); tasks.push(loadBoards()) }
     if (tab === 'chapters') tasks.push(loadSubjects())
     if (tab === 'concepts') { tasks.push(loadSubjects()) }
     if (tab === 'question-types') tasks.push(loadQuestionTypes())
     Promise.all(tasks).finally(() => setLoading(false))
   }, [tab])
+
+  // Cascade: load classes when a board is chosen in the subject-create form
+  useEffect(() => {
+    if (formData.boardId) loadClasses(formData.boardId)
+    else setClasses([])
+  }, [formData.boardId])
 
   useEffect(() => {
     if (tab === 'chapters' && selectedSubject) loadChapters(selectedSubject)
@@ -73,12 +84,13 @@ export default function MasterDataPage() {
     setError('')
     try {
       if (tab === 'boards') {
-        await api.post('/master/boards', { name: formData.name, code: formData.code })
+        await api.post('/master/boards', { name: formData.name })
         await loadBoards()
       } else if (tab === 'subjects') {
         await api.post('/master/subjects', {
-          name: formData.name, code: formData.code,
-          boardId: formData.boardId, classId: formData.classId,
+          name: formData.name,
+          code: formData.code,
+          classId: formData.classId,
         })
         await loadSubjects()
       } else if (tab === 'chapters') {
@@ -178,16 +190,27 @@ export default function MasterDataPage() {
           {tab === 'boards' && (
             <div className="grid grid-cols-2 gap-4">
               <div><label className="label">Name *</label><input className="input" value={formData.name ?? ''} onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))} placeholder="CBSE" /></div>
-              <div><label className="label">Code *</label><input className="input" value={formData.code ?? ''} onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))} placeholder="CBSE" /></div>
             </div>
           )}
 
           {tab === 'subjects' && (
             <div className="grid grid-cols-2 gap-4">
               <div><label className="label">Name *</label><input className="input" value={formData.name ?? ''} onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))} placeholder="Science" /></div>
-              <div><label className="label">Code *</label><input className="input" value={formData.code ?? ''} onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))} placeholder="SCI" /></div>
-              <div><label className="label">Board ID *</label><input className="input" value={formData.boardId ?? ''} onChange={(e) => setFormData((p) => ({ ...p, boardId: e.target.value }))} placeholder="Board ID" /></div>
-              <div><label className="label">Class ID *</label><input className="input" value={formData.classId ?? ''} onChange={(e) => setFormData((p) => ({ ...p, classId: e.target.value }))} placeholder="Class ID" /></div>
+              <div><label className="label">Code *</label><input className="input" value={formData.code ?? ''} onChange={(e) => setFormData((p) => ({ ...p, code: e.target.value }))} placeholder="SCI10" /></div>
+              <div>
+                <label className="label">Board *</label>
+                <select className="input" value={formData.boardId ?? ''} onChange={(e) => setFormData((p) => ({ ...p, boardId: e.target.value, classId: '' }))}>
+                  <option value="">Select board…</option>
+                  {boards.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Class *</label>
+                <select className="input" value={formData.classId ?? ''} onChange={(e) => setFormData((p) => ({ ...p, classId: e.target.value }))} disabled={!formData.boardId || classes.length === 0}>
+                  <option value="">Select class…</option>
+                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
             </div>
           )}
 

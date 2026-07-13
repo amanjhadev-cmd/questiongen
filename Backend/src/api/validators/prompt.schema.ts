@@ -4,6 +4,9 @@ export const createPromptSchema = z.object({
   name: z.string().min(2).max(200),
   subjectId: z.string().uuid().optional(),
   description: z.string().max(1000).optional(),
+  // Optional initial template text — when provided, a first draft version is created.
+  content: z.string().min(10).optional(),
+  variables: z.array(z.string()).optional(),
 })
 
 export const createPromptVersionSchema = z.object({

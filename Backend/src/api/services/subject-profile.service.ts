@@ -96,7 +96,7 @@ export async function listSubjectProfiles() {
           class: { select: { id: true, name: true, board: { select: { id: true, name: true } } } },
         },
       },
-      promptVersion: { select: { id: true, versionNo: true, status: true } },
+      promptVersion: { select: { id: true, versionNo: true, status: true, prompt: { select: { id: true, name: true } } } },
       schemaVersion: { select: { id: true, versionNo: true } },
     },
     orderBy: { updatedAt: 'desc' },
