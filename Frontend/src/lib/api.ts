@@ -52,8 +52,11 @@ async function tryRefresh(): Promise<boolean> {
       credentials: 'include',
     })
     if (!res.ok) return false
-    const data = await res.json()
-    setAccessToken(data.accessToken)
+    const body = await res.json()
+    // Response is wrapped: { data: { accessToken, user } }
+    const accessToken = body.data?.accessToken ?? body.accessToken
+    if (!accessToken) return false
+    setAccessToken(accessToken)
     return true
   } catch {
     return false

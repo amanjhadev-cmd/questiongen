@@ -107,7 +107,7 @@ export default function DiagramsPage() {
                   </p>
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/svg+xml"
+                    accept="image/png,image/jpeg"
                     className="hidden"
                     ref={(el) => { fileRefs.current[job?.id ?? ''] = el }}
                     onChange={(e) => {

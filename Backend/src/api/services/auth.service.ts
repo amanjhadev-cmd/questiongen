@@ -36,7 +36,10 @@ export async function refresh(token: string) {
   }
 
   const newPayload = { userId: user.id, role: user.role, email: user.email }
-  return { accessToken: signAccessToken(newPayload) }
+  return {
+    accessToken: signAccessToken(newPayload),
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+  }
 }
 
 export async function createUser(data: {

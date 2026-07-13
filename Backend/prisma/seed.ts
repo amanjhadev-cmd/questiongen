@@ -109,10 +109,16 @@ async function main() {
   let schema = await prisma.schema.findFirst({ where: { name: 'Question Schema' } })
   if (!schema) {
     schema = await prisma.schema.create({ data: { name: 'Question Schema' } })
-    await prisma.schemaVersion.create({
+  }
+  let schemaVersion = await prisma.schemaVersion.findFirst({
+    where: { schemaId: schema.id },
+    orderBy: { versionNo: 'desc' },
+  })
+  if (!schemaVersion) {
+    schemaVersion = await prisma.schemaVersion.create({
       data: {
         schemaId: schema.id,
-        versionNo: 2,
+        versionNo: 1,
         definition: {
           $schema: 'http://json-schema.org/draft-07/schema#',
           title: 'QuestionSchema',
@@ -137,8 +143,8 @@ async function main() {
     })
   }
 
-  const existingVersion = await prisma.promptVersion.findFirst({ where: { promptId: sciencePrompt.id, versionNo: 6 } })
-  if (!existingVersion) await prisma.promptVersion.create({
+  let sciencePromptVersion = await prisma.promptVersion.findFirst({ where: { promptId: sciencePrompt.id, versionNo: 6 } })
+  if (!sciencePromptVersion) sciencePromptVersion = await prisma.promptVersion.create({
     data: {
       promptId: sciencePrompt.id,
       versionNo: 6,
@@ -166,6 +172,28 @@ JSON Schema:
       createdById: superAdmin.id,
     },
   })
+
+  // ── Subject Profile (Science) ─────────────────────────────────────────────────
+  // Required before a batch can be created for the subject.
+  const existingProfile = await prisma.subjectProfile.findUnique({ where: { subjectId: science.id } })
+  if (!existingProfile) {
+    await prisma.subjectProfile.create({
+      data: {
+        subjectId: science.id,
+        promptVersionId: sciencePromptVersion.id,
+        schemaVersionId: schemaVersion.id,
+        maxConcepts: 3,
+        generationProvider: 'manual_qwen',
+        fieldRegistryJson: {},
+        diagramEnabled: true,
+        passageEnabled: false,
+        conceptEnabled: true,
+        solutionStepsEnabled: false,
+        createdById: superAdmin.id,
+      },
+    })
+    console.log('Created Subject Profile for Science')
+  }
 
   console.log('Seed complete.')
   // idempotent: re-running seed is safe

@@ -20,9 +20,10 @@ export const useAuth = create<AuthState>((set, get) => ({
   login: async (email, password) => {
     set({ isLoading: true })
     try {
-      const data = await api.post<{ accessToken: string; user: User }>('/auth/login', { email, password })
-      setAccessToken(data.accessToken)
-      set({ user: data.user, accessToken: data.accessToken, isLoading: false })
+      const res = await api.post<{ data: { accessToken: string; user: User } }>('/auth/login', { email, password })
+      const { accessToken, user } = res.data
+      setAccessToken(accessToken)
+      set({ user, accessToken, isLoading: false })
     } catch (e) {
       set({ isLoading: false })
       throw e
@@ -37,9 +38,10 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   refreshSession: async () => {
     try {
-      const data = await api.post<{ accessToken: string; user: User }>('/auth/refresh')
-      setAccessToken(data.accessToken)
-      set({ user: data.user, accessToken: data.accessToken })
+      const res = await api.post<{ data: { accessToken: string; user: User } }>('/auth/refresh')
+      const { accessToken, user } = res.data
+      setAccessToken(accessToken)
+      set({ user, accessToken })
       return true
     } catch {
       set({ user: null, accessToken: null })
