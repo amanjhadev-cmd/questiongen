@@ -7,6 +7,7 @@ import {
   createPromptSchema,
   createPromptVersionSchema,
   updatePromptVersionStatusSchema,
+  updatePromptSchema,
 } from '../validators/prompt.schema'
 
 const router = Router()
@@ -17,6 +18,7 @@ router.get('/:id', ctrl.getPrompt)
 router.get('/:id/versions', ctrl.listPromptVersions)
 router.get('/:id/versions/:versionId', ctrl.getPromptVersion)
 router.post('/', requireRole('super_admin', 'admin'), validate(createPromptSchema), ctrl.createPrompt)
+router.patch('/:id', requireRole('super_admin', 'admin'), validate(updatePromptSchema), ctrl.updatePrompt)
 router.post('/:id/versions', requireRole('super_admin', 'admin'), validate(createPromptVersionSchema), ctrl.addPromptVersion)
 router.patch(
   '/:id/versions/:versionId/status',

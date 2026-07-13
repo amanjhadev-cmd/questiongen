@@ -85,6 +85,17 @@ export async function upsertSubjectProfile(
   })
 }
 
+export async function deleteSubjectProfile(subjectId: string) {
+  const profile = await prisma.subjectProfile.findUnique({ where: { subjectId } })
+  if (!profile) throw Errors.notFound('Subject profile')
+  const batchCount = await prisma.batch.count({ where: { profileId: profile.id } })
+  if (batchCount > 0) {
+    throw Errors.conflict(`Cannot delete: this profile is used by ${batchCount} batch(es).`)
+  }
+  await prisma.subjectProfile.delete({ where: { subjectId } })
+  return { subjectId, deleted: true }
+}
+
 export async function listSubjectProfiles() {
   return prisma.subjectProfile.findMany({
     include: {

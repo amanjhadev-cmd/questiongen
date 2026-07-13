@@ -11,5 +11,6 @@ router.use(authenticate)
 router.get('/', ctrl.listSubjectProfiles)
 router.get('/:subjectId', ctrl.getSubjectProfile)
 router.put('/', requireRole('super_admin', 'admin'), validate(upsertSubjectProfileSchema), ctrl.upsertSubjectProfile)
+router.delete('/:subjectId', requireRole('super_admin', 'admin'), ctrl.deleteSubjectProfile)
 
 export default router

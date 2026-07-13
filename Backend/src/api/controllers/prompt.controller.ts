@@ -57,6 +57,13 @@ export async function getPromptVersion(req: Request, res: Response, next: NextFu
   } catch (e) { next(e) }
 }
 
+export async function updatePrompt(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { name, description, subjectId } = req.body
+    res.json(await svc.updatePrompt(req.params.id, { name, description, subjectId }))
+  } catch (e) { next(e) }
+}
+
 export async function archivePrompt(req: Request, res: Response, next: NextFunction) {
   try {
     res.json(await svc.archivePrompt(req.params.id))

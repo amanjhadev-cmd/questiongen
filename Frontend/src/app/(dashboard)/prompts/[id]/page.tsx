@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import { statusColor, formatDate } from '@/lib/utils'
 import type { Prompt, PromptVersion } from '@/types'
-import { Plus, Archive } from 'lucide-react'
+import { Plus, Archive, Pencil } from 'lucide-react'
 
 interface PromptDetail extends Prompt {
   versions: PromptVersion[]
@@ -20,6 +20,8 @@ export default function PromptDetailPage() {
   const [newText, setNewText] = useState('')
   const [saving, setSaving] = useState(false)
   const [actionId, setActionId] = useState('')
+  const [editingMeta, setEditingMeta] = useState(false)
+  const [metaForm, setMetaForm] = useState({ name: '', description: '' })
 
   async function load() {
     try {
@@ -52,6 +54,20 @@ export default function PromptDetailPage() {
     setActionId('')
   }
 
+  function startEditMeta() {
+    if (!prompt) return
+    setMetaForm({ name: prompt.name, description: prompt.description ?? '' })
+    setEditingMeta(true)
+  }
+
+  async function saveMeta() {
+    try {
+      await api.patch(`/prompts/${id}`, { name: metaForm.name, description: metaForm.description || undefined })
+      setEditingMeta(false)
+      await load()
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed') }
+  }
+
   async function archivePrompt() {
     if (!confirm('Archive this prompt? It will no longer be selectable for new subject profiles.')) return
     try {
@@ -71,6 +87,9 @@ export default function PromptDetailPage() {
           {prompt.description && <p className="text-sm text-gray-500 mt-1">{prompt.description}</p>}
         </div>
         <div className="flex gap-2">
+          <button onClick={startEditMeta} className="btn-secondary">
+            <Pencil size={15} /> Edit
+          </button>
           <button onClick={() => setShowNewVersion(true)} className="btn-secondary">
             <Plus size={15} /> Add Version
           </button>
@@ -81,6 +100,24 @@ export default function PromptDetailPage() {
           )}
         </div>
       </div>
+
+      {editingMeta && (
+        <div className="card p-5 space-y-4 border-2 border-brand">
+          <h2 className="text-base font-semibold">Edit Prompt</h2>
+          <div>
+            <label className="label">Name *</label>
+            <input className="input" value={metaForm.name} onChange={(e) => setMetaForm((p) => ({ ...p, name: e.target.value }))} />
+          </div>
+          <div>
+            <label className="label">Description</label>
+            <input className="input" value={metaForm.description} onChange={(e) => setMetaForm((p) => ({ ...p, description: e.target.value }))} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={saveMeta} disabled={!metaForm.name.trim()} className="btn-primary">Save Changes</button>
+            <button onClick={() => setEditingMeta(false)} className="btn-secondary">Cancel</button>
+          </div>
+        </div>
+      )}
 
       {showNewVersion && (
         <div className="card p-5 space-y-4 border-2 border-brand">

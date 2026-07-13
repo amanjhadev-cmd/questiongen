@@ -140,8 +140,36 @@ export async function getPublishedVersion(promptId: string) {
   return version
 }
 
+export async function updatePrompt(
+  id: string,
+  data: { name?: string; description?: string; subjectId?: string | null },
+) {
+  const prompt = await prisma.prompt.findUnique({ where: { id, isActive: true } })
+  if (!prompt) throw Errors.notFound('Prompt')
+  return prisma.prompt.update({
+    where: { id },
+    data: {
+      name: data.name,
+      description: data.description,
+      ...(data.subjectId !== undefined ? { subjectId: data.subjectId } : {}),
+    },
+    include: {
+      subject: { select: { id: true, name: true, code: true } },
+      versions: { orderBy: { versionNo: 'asc' } },
+    },
+  })
+}
+
 export async function archivePrompt(id: string) {
   const prompt = await prisma.prompt.findUnique({ where: { id } })
   if (!prompt) throw Errors.notFound('Prompt')
+
+  // Block archiving a prompt whose versions are still wired into a subject profile.
+  const inUse = await prisma.subjectProfile.count({
+    where: { promptVersion: { promptId: id } },
+  })
+  if (inUse > 0) {
+    throw Errors.conflict(`Cannot archive: this prompt is used by ${inUse} subject profile(s). Reassign them first.`)
+  }
   return prisma.prompt.update({ where: { id }, data: { isActive: false } })
 }

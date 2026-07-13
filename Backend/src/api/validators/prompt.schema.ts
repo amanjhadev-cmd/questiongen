@@ -18,3 +18,9 @@ export const createPromptVersionSchema = z.object({
 export const updatePromptVersionStatusSchema = z.object({
   status: z.enum(['draft', 'published', 'archived']),
 })
+
+export const updatePromptSchema = z.object({
+  name: z.string().min(2).max(200).optional(),
+  description: z.string().max(1000).optional(),
+  subjectId: z.string().uuid().nullable().optional(),
+})

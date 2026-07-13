@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import type { Subject, SubjectProfile, PromptVersion } from '@/types'
 import { statusColor } from '@/lib/utils'
+import { Pencil, Trash2 } from 'lucide-react'
 
 interface SubjectProfileDetail extends SubjectProfile {
   subject: Subject
@@ -126,6 +127,35 @@ export default function SettingsPage() {
     } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed') }
   }
 
+  function startEditProfile(p: SubjectProfileDetail) {
+    setProfileForm({
+      subjectId: p.subjectId,
+      promptVersionId: p.promptVersionId,
+      schemaVersionId: p.schemaVersionId,
+      diagramEnabled: p.diagramEnabled,
+      passageEnabled: p.passageEnabled,
+      conceptEnabled: p.conceptEnabled,
+      solutionStepsEnabled: p.solutionStepsEnabled,
+    })
+    setShowProfileForm(true)
+  }
+
+  async function deleteProfile(subjectId: string, subjectName: string) {
+    if (!confirm(`Delete the subject profile for ${subjectName}? Batches can't be created for it until a new one is configured.`)) return
+    try {
+      await api.delete(`/subject-profiles/${subjectId}`)
+      await loadProfiles()
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed') }
+  }
+
+  async function deleteField(id: string, name: string) {
+    if (!confirm(`Delete field "${name}"?`)) return
+    try {
+      await api.delete(`/field-registry/${id}`)
+      await loadFields()
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed') }
+  }
+
   if (loading) return <div className="p-8 text-gray-400 text-sm">Loading…</div>
 
   const MODES = ['required', 'optional', 'disabled', 'auto']
@@ -213,8 +243,14 @@ export default function SettingsPage() {
             {profiles.map((p) => (
               <div key={p.id} className="card p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-base font-semibold">{p.subject.name}</h2>
-                  <span className="text-xs text-gray-400">Prompt: {p.promptVersion.prompt.name} v{p.promptVersion.versionNo}</span>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-base font-semibold">{p.subject.name}</h2>
+                    <span className="text-xs text-gray-400">Prompt: {p.promptVersion.prompt.name} v{p.promptVersion.versionNo}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => startEditProfile(p)} className="text-gray-400 hover:text-brand p-1" title="Edit"><Pencil size={15} /></button>
+                    <button onClick={() => deleteProfile(p.subjectId, p.subject.name)} className="text-gray-400 hover:text-red-500 p-1" title="Delete"><Trash2 size={15} /></button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {[
@@ -283,7 +319,18 @@ export default function SettingsPage() {
             {fields.map((f) => (
               <div key={f.id} className="px-5 py-3 flex items-center gap-4">
                 <code className="text-xs font-mono text-brand bg-brand-muted px-2 py-0.5 rounded flex-shrink-0">{f.fieldName}</code>
-                <p className="text-sm text-gray-600 flex-1">{f.label || '—'}</p>
+                <input
+                  className="input flex-1 text-sm py-1"
+                  defaultValue={f.label}
+                  onBlur={async (e) => {
+                    const label = e.target.value.trim()
+                    if (label && label !== f.label) {
+                      try { await api.patch(`/field-registry/${f.id}`, { label }); await loadFields() }
+                      catch (err: unknown) { alert(err instanceof Error ? err.message : 'Failed') }
+                    }
+                  }}
+                  title="Edit label (saves on blur)"
+                />
                 <select
                   className="input !w-36 text-xs py-1"
                   value={f.mode}
@@ -291,6 +338,7 @@ export default function SettingsPage() {
                 >
                   {MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
+                <button onClick={() => deleteField(f.id, f.label || f.fieldName)} className="text-gray-400 hover:text-red-500 p-1" title="Delete"><Trash2 size={15} /></button>
               </div>
             ))}
             {fields.length === 0 && <p className="px-5 py-4 text-sm text-gray-400">No field registry entries.</p>}

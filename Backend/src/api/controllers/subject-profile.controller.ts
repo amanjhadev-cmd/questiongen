@@ -19,3 +19,9 @@ export async function upsertSubjectProfile(req: Request, res: Response, next: Ne
     res.json(await svc.upsertSubjectProfile(data))
   } catch (e) { next(e) }
 }
+
+export async function deleteSubjectProfile(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.deleteSubjectProfile(req.params.subjectId))
+  } catch (e) { next(e) }
+}
