@@ -6,7 +6,7 @@ import { buildInjectedMetadata } from './metadata-injection.service'
 import { logger } from '../../config/logger'
 import { normalizeText, hashText, trigramSet, findDuplicate, type ExistingText } from '../../utils/dedup'
 
-const DEDUP_THRESHOLD = 0.8
+const DEDUP_THRESHOLD = 0.85
 
 export interface ImportResult {
   batchId: string
