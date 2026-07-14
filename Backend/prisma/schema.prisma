@@ -19,6 +19,7 @@ model User {
 
   createdBatches   Batch[]         @relation("BatchCreatedBy")
   assignedBatches  Batch[]         @relation("BatchAssignedTo")
+  prompts          Prompt[]
   promptVersions   PromptVersion[]
   schemaVersions   SchemaVersion[]
   subjectProfiles  SubjectProfile[]
