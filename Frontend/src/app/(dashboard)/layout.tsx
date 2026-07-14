@@ -13,11 +13,13 @@ import {
   LogOut,
   Users,
   Database,
+  BarChart3,
 } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'sme', 'intern'] },
   { href: '/batches', label: 'Batches', icon: Layers, roles: ['super_admin', 'admin', 'intern'] },
+  { href: '/coverage', label: 'Coverage', icon: BarChart3, roles: ['super_admin', 'admin', 'intern'] },
   { href: '/review', label: 'Review Queue', icon: FileText, roles: ['super_admin', 'admin', 'sme'] },
   { href: '/prompts', label: 'Prompt Library', icon: BookOpen, roles: ['super_admin', 'admin'] },
   { href: '/master', label: 'Master Data', icon: Database, roles: ['super_admin', 'admin'] },
