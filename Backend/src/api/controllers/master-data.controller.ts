@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import * as svc from '../services/master-data.service'
+import { importMasterFromExcel } from '../services/master-import.service'
+import { Errors } from '../../utils/app-error'
 
 // ── Boards ────────────────────────────────────────────────────────────────────
 
@@ -167,6 +169,16 @@ export async function deleteConcept(req: Request, res: Response, next: NextFunct
 export async function listQuestionTypes(req: Request, res: Response, next: NextFunction) {
   try {
     res.json(await svc.listQuestionTypes())
+  } catch (e) { next(e) }
+}
+
+// ── Excel Import ────────────────────────────────────────────────────────────────
+
+export async function importExcel(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) throw Errors.validation('No file uploaded. Attach an .xlsx file in the "file" field.')
+    const summary = await importMasterFromExcel(req.file.buffer)
+    res.status(201).json(summary)
   } catch (e) { next(e) }
 }
 

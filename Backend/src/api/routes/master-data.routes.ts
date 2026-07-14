@@ -1,8 +1,14 @@
 import { Router } from 'express'
+import multer from 'multer'
 import { authenticate } from '../middlewares/auth.middleware'
 import { requireRole } from '../middlewares/role.middleware'
 import { validate } from '../middlewares/validate.middleware'
 import * as ctrl from '../controllers/master-data.controller'
+
+const uploadXlsx = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+})
 import {
   createBoardSchema,
   createClassSchema,
@@ -54,6 +60,9 @@ router.get('/concepts/:id', ctrl.getConcept)
 router.post('/concepts', requireRole('super_admin', 'admin'), validate(createConceptSchema), ctrl.createConcept)
 router.patch('/concepts/:id', requireRole('super_admin', 'admin'), validate(updateConceptSchema), ctrl.updateConcept)
 router.delete('/concepts/:id', requireRole('super_admin', 'admin'), ctrl.deleteConcept)
+
+// Bulk import from Excel (Board -> Class -> Subject -> Chapter -> Concept)
+router.post('/import-excel', requireRole('super_admin', 'admin'), uploadXlsx.single('file'), ctrl.importExcel)
 
 // Question Types
 router.get('/question-types', ctrl.listQuestionTypes)

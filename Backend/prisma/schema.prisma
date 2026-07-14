@@ -96,6 +96,7 @@ model Chapter {
   subjectId String   @map("subject_id") @db.Uuid
   name      String
   chapterNo Int      @map("chapter_no")
+  uuid      String?  @unique  // human/source chapter UUID (e.g. from Excel import)
   createdAt DateTime @default(now()) @map("created_at")
 
   subject  Subject   @relation(fields: [subjectId], references: [id])

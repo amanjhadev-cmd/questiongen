@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+// A concept UUID may be either the legacy human-readable code (SCI-1042-CH3A)
+// or a standard v4 UUID (as produced by the Excel import).
+export const CONCEPT_UUID_REGEX =
+  /^([A-Z]{2,6}-\d{4}-[A-Z0-9]{4}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/
+
 export const createBoardSchema = z.object({
   name: z.string().min(1).max(100),
 })
@@ -24,7 +29,7 @@ export const createChapterSchema = z.object({
 export const createConceptSchema = z.object({
   chapterId: z.string().uuid(),
   name: z.string().min(1).max(300),
-  uuid: z.string().regex(/^[A-Z]{2,6}-\d{4}-[A-Z0-9]{4}$/, 'UUID must match pattern e.g. SCI-1042-CH3A'),
+  uuid: z.string().regex(CONCEPT_UUID_REGEX, 'UUID must be a standard UUID or a code like SCI-1042-CH3A'),
   shortNote: z.string().max(1000).optional(),
 })
 

@@ -17,7 +17,7 @@ const QUESTION_SCHEMA = {
     difficulty:       { type: 'string', enum: ['easy', 'medium', 'hard'] },
     bloom_level:      { type: 'string', enum: ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'] },
     explanation:      { type: 'string', minLength: 20, maxLength: 3000 },
-    concept_uuids:    { type: 'array', minItems: 1, maxItems: 5, items: { type: 'string', pattern: '^[A-Z]{2,6}-\\d{4}-[A-Z0-9]{4}$' } },
+    concept_uuids:    { type: 'array', minItems: 1, maxItems: 5, items: { type: 'string', pattern: '^([A-Z]{2,6}-\\d{4}-[A-Z0-9]{4}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$' } },
     options:          { type: 'array', minItems: 4, maxItems: 4, items: { type: 'object', required: ['key', 'text'], properties: { key: { type: 'string', enum: ['A', 'B', 'C', 'D'] }, text: { type: 'string', minLength: 1 } } } },
     correct_option:   { type: 'string', enum: ['A', 'B', 'C', 'D'] },
     diagram_required: { type: 'boolean' },
@@ -53,7 +53,8 @@ const AUTO_INJECTED_FIELDS = [
   'diagram_url', 'diagram_alt_text',
 ]
 
-const CONCEPT_UUID_PATTERN = /^[A-Z]{2,6}-\d{4}-[A-Z0-9]{4}$/
+const CONCEPT_UUID_PATTERN =
+  /^([A-Z]{2,6}-\d{4}-[A-Z0-9]{4}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/
 
 // Simple KaTeX-like expression detection (looks for $...$ or $$...$$)
 const LATEX_PATTERN = /\$\$?[^$]+\$\$?/
@@ -212,7 +213,7 @@ export function validateQuestion(
     if (options.conceptEnabled) {
       for (const uuid of uuids) {
         if (!CONCEPT_UUID_PATTERN.test(uuid)) {
-          errors.push({ pass: 9, field: 'concept_uuids', message: `Concept UUID '${uuid}' does not match pattern ^[A-Z]{2,6}-\\d{4}-[A-Z0-9]{4}$` })
+          errors.push({ pass: 9, field: 'concept_uuids', message: `Concept UUID '${uuid}' is not a valid UUID format` })
         } else if (options.allowedConceptUuids && !options.allowedConceptUuids.has(uuid)) {
           errors.push({ pass: 9, field: 'concept_uuids', message: `Concept UUID '${uuid}' does not exist in this chapter` })
         }

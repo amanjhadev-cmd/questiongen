@@ -1,8 +1,19 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import type { Subject, Chapter, Concept, Board, Class, QuestionType } from '@/types'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload } from 'lucide-react'
+
+interface ImportSummary {
+  totalRows: number
+  boards: number
+  classes: number
+  subjects: number
+  chapters: number
+  conceptsCreated: number
+  conceptsSkipped: number
+  errors: Array<{ row: number; message: string }>
+}
 
 type Tab = 'boards' | 'classes' | 'subjects' | 'chapters' | 'concepts' | 'question-types'
 
@@ -34,6 +45,12 @@ export default function MasterDataPage() {
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Excel import
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<ImportSummary | null>(null)
+  const [importError, setImportError] = useState('')
 
   async function loadBoards() { setBoards(await api.get<Board[]>('/master/boards')) }
   async function loadClasses() { setClasses(await api.get<Class[]>('/master/classes')) }
@@ -150,14 +167,72 @@ export default function MasterDataPage() {
     }
   }
 
+  async function handleImportFile(file: File) {
+    setImporting(true)
+    setImportError('')
+    setImportResult(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const summary = await api.upload<ImportSummary>('/master/import-excel', form)
+      setImportResult(summary)
+      // Refresh whatever tab is showing
+      await Promise.all([loadBoards(), loadClasses(), loadSubjects(), reloadCurrent()])
+    } catch (e: unknown) {
+      setImportError(e instanceof Error ? e.message : 'Import failed')
+    }
+    setImporting(false)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   const singular = tab === 'question-types' ? 'question type' : tab.slice(0, -1)
 
   return (
     <div className="p-8 space-y-6">
       <div className="page-header">
         <h1>Master Data</h1>
-        <button onClick={openCreate} className="btn-primary"><Plus size={15} /> Add {singular}</button>
+        <div className="flex gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f) }}
+          />
+          <button onClick={() => fileRef.current?.click()} disabled={importing} className="btn-secondary" title="Import Board → Class → Subject → Chapter → Concept from an .xlsx file">
+            <Upload size={15} /> {importing ? 'Importing…' : 'Import Excel'}
+          </button>
+          <button onClick={openCreate} className="btn-primary"><Plus size={15} /> Add {singular}</button>
+        </div>
       </div>
+
+      {/* Import result */}
+      {importError && (
+        <div className="card p-4 border border-red-200 bg-red-50 text-sm text-red-700">{importError}</div>
+      )}
+      {importResult && (
+        <div className="card p-4 border-2 border-green-200 bg-green-50/40 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-green-800">Import complete — {importResult.totalRows} rows processed</p>
+            <button onClick={() => setImportResult(null)} className="text-xs text-gray-400 hover:text-gray-600">Dismiss</button>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="badge bg-white border border-gray-200">Boards +{importResult.boards}</span>
+            <span className="badge bg-white border border-gray-200">Classes +{importResult.classes}</span>
+            <span className="badge bg-white border border-gray-200">Subjects +{importResult.subjects}</span>
+            <span className="badge bg-white border border-gray-200">Chapters +{importResult.chapters}</span>
+            <span className="badge bg-green-100 text-green-700">Concepts created {importResult.conceptsCreated}</span>
+            {importResult.conceptsSkipped > 0 && <span className="badge bg-gray-100 text-gray-500">Skipped {importResult.conceptsSkipped}</span>}
+            {importResult.errors.length > 0 && <span className="badge bg-orange-100 text-orange-700">{importResult.errors.length} row error(s)</span>}
+          </div>
+          {importResult.errors.length > 0 && (
+            <div className="max-h-32 overflow-y-auto text-xs text-orange-700 space-y-0.5 mt-1">
+              {importResult.errors.slice(0, 20).map((er, i) => <p key={i}>Row {er.row}: {er.message}</p>)}
+              {importResult.errors.length > 20 && <p className="text-gray-400">+{importResult.errors.length - 20} more…</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 flex-wrap">
