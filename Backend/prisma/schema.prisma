@@ -278,10 +278,15 @@ model Batch {
 model Question {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   batchId          String   @map("batch_id") @db.Uuid
+  chapterId        String?  @map("chapter_id") @db.Uuid    // denormalised from batch for dedup/coverage
   conceptId        String?  @map("concept_id") @db.Uuid   // primary concept FK (optional)
   conceptUuid      String?  @map("concept_uuid")           // denormalised for fast export
   questionTypeId   String   @map("question_type_id") @db.Uuid
   content          Json     // validated question JSON from import
+  normalizedText   String?  @map("normalized_text")        // normalised question_text for dedup
+  textHash         String?  @map("text_hash")              // hash of normalizedText for exact-dup lookup
+  difficulty       String?                                  // denormalised from content for coverage
+  bloomLevel       String?  @map("bloom_level")            // denormalised from content for coverage
   injectedMetadata Json     @default("{}") @map("injected_metadata")  // Phase 7 auto-injection
   status           String   @default("staged")
   // staged | validation_failed | validated | diagram_pending | diagram_done
@@ -301,6 +306,8 @@ model Question {
   @@index([batchId])
   @@index([status])
   @@index([conceptId])
+  @@index([chapterId])
+  @@index([chapterId, textHash])
   @@map("questions")
 }
 
