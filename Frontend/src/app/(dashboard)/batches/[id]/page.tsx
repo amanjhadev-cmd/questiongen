@@ -3,26 +3,40 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { statusColor, statusLabel, formatDate } from '@/lib/utils'
-import type { Batch, Question } from '@/types'
-import { CheckCircle, XCircle, AlertCircle, Upload, FileJson, ImageIcon } from 'lucide-react'
+import type { Batch, Question, User } from '@/types'
+import { CheckCircle, XCircle, AlertCircle, Upload, FileJson, ImageIcon, UserCheck } from 'lucide-react'
 
 export default function BatchDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const { user } = useAuth()
   const [batch, setBatch] = useState<Batch | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [action, setAction] = useState('')
+  const [smes, setSmes] = useState<User[]>([])
+  const [selectedSme, setSelectedSme] = useState('')
+  const [assigning, setAssigning] = useState(false)
+
+  const canAssign = user?.role === 'super_admin' || user?.role === 'admin'
 
   useEffect(() => {
     Promise.all([
       api.get<Batch>(`/batches/${id}`),
       api.get<Question[]>(`/batches/${id}/questions`),
-    ]).then(([b, q]) => { setBatch(b); setQuestions(q) })
+    ]).then(([b, q]) => { setBatch(b); setQuestions(q); setSelectedSme(b.assignee?.id ?? '') })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (!canAssign) return
+    api.get<{ data: User[] }>('/users?role=sme')
+      .then((r) => setSmes(r.data.filter((u) => u.isActive)))
+      .catch(console.error)
+  }, [canAssign])
 
   async function markGenerationComplete() {
     setAction('gen')
@@ -31,6 +45,16 @@ export default function BatchDetailPage() {
       setBatch(updated)
     } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed') }
     setAction('')
+  }
+
+  async function assignSme() {
+    if (!selectedSme) return
+    setAssigning(true)
+    try {
+      const updated = await api.post<Batch>(`/batches/${id}/send-to-review`, { smeId: selectedSme })
+      setBatch(updated)
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed') }
+    setAssigning(false)
   }
 
 
@@ -148,6 +172,36 @@ export default function BatchDetailPage() {
               </Link>
             )}
           </div>
+
+          {/* SME reviewer assignment */}
+          {canAssign && ['validation_complete', 'diagram_complete'].includes(batch.status) && (
+            <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+              <p className="section-title flex items-center gap-1"><UserCheck size={13} /> Assign Reviewer</p>
+              {batch.assignee && (
+                <p className="text-xs text-gray-500">Currently: <span className="font-medium text-gray-700">{batch.assignee.name}</span></p>
+              )}
+              <select
+                className="input text-sm"
+                value={selectedSme}
+                onChange={(e) => setSelectedSme(e.target.value)}
+              >
+                <option value="">Select an SME…</option>
+                {smes.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}{s.subjects && s.subjects.length > 0 ? ` — ${s.subjects.map((x) => x.code).join(', ')}` : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={assignSme}
+                disabled={!selectedSme || assigning || selectedSme === batch.assignee?.id}
+                className="btn-secondary w-full justify-center text-sm"
+              >
+                {assigning ? 'Assigning…' : batch.assignee ? 'Reassign' : 'Assign to SME'}
+              </button>
+              {smes.length === 0 && <p className="text-xs text-orange-500">No active SME users. Create one in Users.</p>}
+            </div>
+          )}
         </div>
 
         {/* Stats */}
