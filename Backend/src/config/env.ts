@@ -1,6 +1,13 @@
 import 'dotenv/config'
 import { z } from 'zod'
 
+// An optional URL that treats empty string / whitespace as "not set" so a blank
+// placeholder in .env (e.g. `R2_ENDPOINT=`) doesn't crash startup.
+const optionalUrl = z.preprocess(
+  (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+  z.string().url().optional(),
+)
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(4000),
@@ -9,14 +16,17 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
-  R2_ENDPOINT: z.string().url().optional(),
+  R2_ENDPOINT: optionalUrl,
   R2_ACCESS_KEY_ID: z.string().optional(),
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET_NAME: z.string().optional(),
-  R2_PUBLIC_URL: z.string().url().optional(),
-  N8N_WEBHOOK_URL: z.string().url().optional(),
+  R2_PUBLIC_URL: optionalUrl,
+  N8N_WEBHOOK_URL: optionalUrl,
   N8N_SECRET_HEADER: z.string().optional(),
-  FRONTEND_URL: z.string().url().default('http://localhost:3000'),
+  FRONTEND_URL: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().default('http://localhost:3000'),
+  ),
 })
 
 const parsed = envSchema.safeParse(process.env)
