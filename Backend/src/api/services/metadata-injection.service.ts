@@ -44,7 +44,9 @@ export async function buildInjectedMetadata(batchId: string): Promise<InjectedMe
     board: batch.subject.class.board.name,
     class: batch.subject.class.name,
     subject: batch.subject.name,
-    chapter_uuid: batch.chapter ? batch.chapter.id : null,
+    // Prefer the source chapter UUID (e.g. from the Excel import); fall back to
+    // the internal DB id only when the chapter has no source UUID.
+    chapter_uuid: batch.chapter ? (batch.chapter.uuid ?? batch.chapter.id) : null,
     batch_uuid: batch.id,
     prompt_version: profile.promptVersion.versionNo,
     schema_version: profile.schemaVersion.versionNo,

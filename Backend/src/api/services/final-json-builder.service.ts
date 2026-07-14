@@ -43,7 +43,7 @@ export async function buildFinalJson(batchId: string): Promise<FinalQuestion[]> 
           },
         },
       },
-      chapter: { select: { id: true } },
+      chapter: { select: { id: true, uuid: true } },
       questions: {
         where: { status: 'approved' },
         include: {
@@ -71,7 +71,9 @@ export async function buildFinalJson(batchId: string): Promise<FinalQuestion[]> 
   const board = batch.subject.class.board.name
   const cls = batch.subject.class.name
   const subject = batch.subject.name
-  const chapterUuid = batch.chapter?.id ?? null
+  // Prefer the source chapter UUID (e.g. from the Excel import); fall back to
+  // the internal DB id only when the chapter has no source UUID.
+  const chapterUuid = batch.chapter?.uuid ?? batch.chapter?.id ?? null
 
   type BatchQuestion = typeof batch.questions[0]
   return batch.questions.map((q: BatchQuestion) => {
