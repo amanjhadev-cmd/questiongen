@@ -2,20 +2,29 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
+import { ProtectedContent } from '@/components/ProtectedContent'
 import { statusColor } from '@/lib/utils'
 import type { Question, QuestionContent } from '@/types'
 import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+
+interface DiagramAssetLite { publicUrl: string; isActive: boolean; version: number }
+interface ReviewQuestion extends Question {
+  smeReviews: Array<{ decision: string; notes?: string; reviewedBy: { name: string } }>
+  diagramJobs?: Array<{ assets: DiagramAssetLite[] }>
+}
 
 interface BatchReview {
   id: string
   name: string
   status: string
-  questions: (Question & { smeReviews: Array<{ decision: string; notes?: string; reviewedBy: { name: string } }> })[]
+  questions: ReviewQuestion[]
 }
 
 export default function ReviewPage() {
   const { batchId } = useParams<{ batchId: string }>()
   const router = useRouter()
+  const { user } = useAuth()
   const [batch, setBatch] = useState<BatchReview | null>(null)
   const [idx, setIdx] = useState(0)
   const [decision, setDecision] = useState<'approved' | 'rejected' | null>(null)
@@ -33,6 +42,7 @@ export default function ReviewPage() {
   const question = batch?.questions[idx]
   const content = question?.content as QuestionContent | undefined
   const latestReview = question?.smeReviews?.[0]
+  const activeDiagram = question?.diagramJobs?.[0]?.assets?.find((a) => a.isActive)
 
   useEffect(() => {
     if (latestReview) {
@@ -117,6 +127,7 @@ export default function ReviewPage() {
       </div>
 
       {question && content && (
+        <ProtectedContent email={user?.email ?? 'unknown'}>
         <div className="grid grid-cols-3 gap-6">
           {/* Question panel */}
           <div className="card p-6 col-span-2 space-y-4">
@@ -126,6 +137,19 @@ export default function ReviewPage() {
             </div>
 
             <p className="text-base text-gray-900 leading-relaxed">{content.question_text}</p>
+
+            {activeDiagram && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-gray-400">Diagram</p>
+                <img
+                  src={activeDiagram.publicUrl}
+                  alt="Question diagram"
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
+                  className="max-h-64 rounded-lg border border-gray-200 object-contain pointer-events-none"
+                />
+              </div>
+            )}
 
             {content.options && (
               <ol type="A" className="space-y-2 ml-4 list-[upper-alpha]">
@@ -229,6 +253,7 @@ export default function ReviewPage() {
             )}
           </div>
         </div>
+        </ProtectedContent>
       )}
     </div>
   )
