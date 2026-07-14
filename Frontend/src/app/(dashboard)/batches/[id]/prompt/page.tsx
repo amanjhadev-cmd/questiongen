@@ -53,6 +53,34 @@ export default function BatchPromptPage() {
         </div>
       </div>
 
+      {/* Duplicate-avoidance context */}
+      {preview.dedup && preview.dedup.existingCount > 0 && (
+        <div className="card p-4 border border-amber-200 bg-amber-50/40">
+          <p className="section-title text-amber-700">Duplicate Avoidance</p>
+          <p className="text-sm text-amber-800">
+            This chapter already has <strong>{preview.dedup.existingCount}</strong> question(s).
+            The prompt below embeds coverage + a sample of existing stems so the LLM avoids repeats.
+            The importer auto-rejects anything &gt;80% similar.
+          </p>
+          {preview.dedup.conceptCoverage.length > 0 && (
+            <div className="mt-3 space-y-1">
+              <p className="text-xs font-semibold text-amber-700">Least-covered concepts (target these):</p>
+              <div className="flex flex-wrap gap-1.5">
+                {preview.dedup.conceptCoverage
+                  .slice()
+                  .sort((a, b) => a.count - b.count)
+                  .slice(0, 8)
+                  .map((c) => (
+                    <span key={c.uuid} className="badge bg-white border border-amber-200 text-amber-800 text-xs">
+                      {c.name}: {c.count}
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Bloom level selector */}
       <div className="card p-4">
         <label className="label">Bloom&apos;s Taxonomy Level (select before copying)</label>

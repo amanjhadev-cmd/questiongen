@@ -194,6 +194,11 @@ export interface PromptPreview {
     solutionStepsEnabled: boolean
     maxConcepts: number
   }
+  dedup?: {
+    existingCount: number
+    conceptCoverage: Array<{ uuid: string; name: string; count: number }>
+    avoidSampleCount: number
+  }
 }
 
 export interface PaginatedMeta {

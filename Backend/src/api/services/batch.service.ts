@@ -238,6 +238,66 @@ export async function getBatchPromptPreview(batchId: string) {
     }),
   )
 
+  // ── De-dup prevention context (Layer 2) ──────────────────────────────────────
+  // Make the prompt aware of what already exists for this chapter so the LLM
+  // steers away from duplicates and toward under-covered concepts.
+  const KEPT = ['validated', 'diagram_pending', 'diagram_done', 'under_review', 'approved']
+  let existingCount = 0
+  let conceptCoverage: Array<{ uuid: string; name: string; count: number }> = []
+  let avoidSample: string[] = []
+
+  if (batch.chapterId) {
+    const [count, sampleRows, conceptRows] = await Promise.all([
+      prisma.question.count({ where: { chapterId: batch.chapterId, status: { in: KEPT } } }),
+      prisma.question.findMany({
+        where: { chapterId: batch.chapterId, status: { in: KEPT } },
+        select: { content: true },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      prisma.question.groupBy({
+        by: ['conceptUuid'],
+        where: { chapterId: batch.chapterId, status: { in: KEPT } },
+        _count: { _all: true },
+      }),
+    ])
+    existingCount = count
+    avoidSample = sampleRows
+      .map((r: { content: unknown }) => String((r.content as Record<string, unknown>).question_text ?? '').trim())
+      .filter(Boolean)
+      .map((s: string) => (s.length > 160 ? `${s.slice(0, 160)}…` : s))
+    const countByUuid = new Map<string, number>(
+      (conceptRows as Array<{ conceptUuid: string | null; _count: { _all: number } }>).map((r) => [r.conceptUuid ?? 'unknown', r._count._all]),
+    )
+    conceptCoverage = concepts.map((c: { uuid: string; name: string }) => ({
+      uuid: c.uuid,
+      name: c.name,
+      count: countByUuid.get(c.uuid) ?? 0,
+    }))
+
+    if (existingCount > 0) {
+      const coverageLines = conceptCoverage
+        .slice()
+        .sort((a, b) => a.count - b.count)
+        .map((c) => `- ${c.name}: ${c.count} already`)
+        .join('\n')
+      const avoidLines = avoidSample.map((s, i) => `${i + 1}. ${s}`).join('\n')
+      interpolated += `
+
+---
+DUPLICATE-AVOIDANCE CONTEXT (IMPORTANT):
+This chapter already has ${existingCount} question(s). Do NOT repeat or lightly reword any existing question. The importer AUTO-REJECTS any question that is more than 80% similar to an existing one (including number-swapped clones), so near-duplicates are wasted effort.
+
+Concept coverage so far — favour the LEAST-covered concepts:
+${coverageLines}
+
+Sample of question stems that ALREADY EXIST — avoid these and anything close in wording or angle:
+${avoidLines}
+
+Produce questions that are clearly distinct in wording, framing, and values, and spread them across difficulty and Bloom levels.`
+    }
+  }
+
   return {
     batchId: batch.id,
     batchName: batch.name,
@@ -251,6 +311,11 @@ export async function getBatchPromptPreview(batchId: string) {
       passageEnabled: profile.passageEnabled,
       solutionStepsEnabled: profile.solutionStepsEnabled,
       maxConcepts: profile.maxConcepts,
+    },
+    dedup: {
+      existingCount,
+      conceptCoverage,
+      avoidSampleCount: avoidSample.length,
     },
   }
 }
