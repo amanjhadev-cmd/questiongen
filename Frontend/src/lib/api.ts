@@ -15,8 +15,13 @@ async function request<T>(
   options: RequestInit = {},
   retry = true,
 ): Promise<T> {
+  // For FormData bodies (file uploads) we must NOT set Content-Type — the browser
+  // sets multipart/form-data with the correct boundary. Setting application/json
+  // here makes the server try to JSON.parse the file and fail.
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
+
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string> ?? {}),
   }
 
