@@ -12,6 +12,7 @@ import exportRoutes from './export.routes'
 import questionRoutes from './question.routes'
 import fieldRegistryRoutes from './field-registry.routes'
 import coverageRoutes from './coverage.routes'
+import questionTypeSchemaRoutes from './question-type-schema.routes'
 
 const router = Router()
 
@@ -49,5 +50,8 @@ router.use('/questions', questionRoutes)
 
 // Coverage dashboard (dedup Layer 3)
 router.use('/coverage', coverageRoutes)
+
+// Per-question-type output schemas (validation + export shape)
+router.use('/question-type-schemas', questionTypeSchemaRoutes)
 
 export default router

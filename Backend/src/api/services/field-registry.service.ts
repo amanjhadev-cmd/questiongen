@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { Errors } from '../../utils/app-error'
 
@@ -26,7 +27,7 @@ export async function createField(data: {
 }) {
   const existing = await prisma.fieldRegistry.findUnique({ where: { fieldName: data.fieldName } })
   if (existing) throw Errors.conflict(`Field '${data.fieldName}' already exists in the registry`)
-  return prisma.fieldRegistry.create({ data })
+  return prisma.fieldRegistry.create({ data: data as Prisma.FieldRegistryUncheckedCreateInput })
 }
 
 export async function updateField(
@@ -43,7 +44,7 @@ export async function updateField(
 ) {
   const field = await prisma.fieldRegistry.findUnique({ where: { id } })
   if (!field) throw Errors.notFound('Field registry entry')
-  return prisma.fieldRegistry.update({ where: { id }, data })
+  return prisma.fieldRegistry.update({ where: { id }, data: data as Prisma.FieldRegistryUncheckedUpdateInput })
 }
 
 export async function deactivateField(id: string) {

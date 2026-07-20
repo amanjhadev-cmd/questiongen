@@ -246,7 +246,7 @@ function buildPdfHtml(questions: FinalQuestion[]): string {
 
       return `
         <div class="question">
-          <p class="q-num"><strong>Q${i + 1}.</strong> ${escHtml(q.question_text)}</p>
+          <p class="q-num"><strong>Q${i + 1}.</strong> ${escHtml(String(q.question_text ?? ''))}</p>
           ${diagramHtml}
           ${optionsHtml}
           ${tfHtml}
@@ -255,7 +255,7 @@ function buildPdfHtml(questions: FinalQuestion[]): string {
           </p>
           <details class="explanation">
             <summary>Explanation</summary>
-            <p>${escHtml(q.explanation)}</p>
+            <p>${escHtml(String(q.explanation ?? ''))}</p>
           </details>
         </div>
       `

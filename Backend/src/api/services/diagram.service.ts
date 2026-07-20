@@ -89,7 +89,7 @@ async function _doUpload(
   mimeType: string,
   version: number,
 ) {
-  const typedJob = job as {
+  const typedJob = job as unknown as {
     id: string
     description: string
     question: {

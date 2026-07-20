@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { Errors } from '../../utils/app-error'
 
@@ -49,7 +50,7 @@ export async function upsertSubjectProfile(
         schemaVersionId: data.schemaVersionId,
         maxConcepts: data.maxConcepts,
         generationProvider: data.generationProvider,
-        fieldRegistryJson: data.fieldRegistryJson,
+        fieldRegistryJson: data.fieldRegistryJson as Prisma.InputJsonValue,
         diagramEnabled: data.diagramEnabled,
         passageEnabled: data.passageEnabled,
         conceptEnabled: data.conceptEnabled,
@@ -70,7 +71,7 @@ export async function upsertSubjectProfile(
       schemaVersionId: data.schemaVersionId,
       maxConcepts: data.maxConcepts,
       generationProvider: data.generationProvider,
-      fieldRegistryJson: data.fieldRegistryJson,
+      fieldRegistryJson: data.fieldRegistryJson as Prisma.InputJsonValue,
       diagramEnabled: data.diagramEnabled,
       passageEnabled: data.passageEnabled,
       conceptEnabled: data.conceptEnabled,

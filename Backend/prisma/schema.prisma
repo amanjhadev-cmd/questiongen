@@ -27,6 +27,7 @@ model User {
   exports          Export[]
   questionVersions QuestionVersion[]
   smeSubjects      SmeSubject[]
+  questionTypeSchemas QuestionTypeSchema[]
 
   @@index([email])
   @@index([role])
@@ -134,8 +135,27 @@ model QuestionType {
 
   batches   Batch[]
   questions Question[]
+  schemas   QuestionTypeSchema[]
 
   @@map("question_types")
+}
+
+// Per-question-type output JSON Schema, versioned. The latest version is the
+// "active" schema used for strict import validation AND to shape the export.
+model QuestionTypeSchema {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  questionTypeId String   @map("question_type_id") @db.Uuid
+  versionNo      Int      @map("version_no")
+  definition     Json     // a JSON Schema (draft-07)
+  createdById    String   @map("created_by") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  questionType QuestionType @relation(fields: [questionTypeId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation(fields: [createdById], references: [id])
+
+  @@unique([questionTypeId, versionNo])
+  @@index([questionTypeId])
+  @@map("question_type_schemas")
 }
 
 model Prompt {

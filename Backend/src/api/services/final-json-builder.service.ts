@@ -1,15 +1,11 @@
 import { prisma } from '../../config/database'
 import { Errors } from '../../utils/app-error'
+import { getActiveSchemasByCode } from './question-type-schema.service'
 
 export interface FinalQuestion {
   id: string
-  question_text: string
   question_type: string
-  marks: number
-  difficulty: string
-  bloom_level: string
-  explanation: string
-  // optional fields present if applicable
+  // Content fields are shaped by each question type's schema (2B), so they vary.
   [key: string]: unknown
   // injected metadata
   _meta: {
@@ -27,6 +23,14 @@ export interface FinalQuestion {
     concept_uuids?: string[]
   }
 }
+
+// The content fields emitted when a question type has no custom schema yet.
+const LEGACY_FIELDS = [
+  'question_text', 'question_type', 'marks', 'difficulty', 'bloom_level', 'explanation',
+  'options', 'correct_option', 'correct_answer', 'blanks', 'column_a', 'column_b',
+  'correct_matches', 'solution_steps', 'passage', 'hint', 'tags',
+  'diagram_required', 'diagram_description', 'language', 'is_ncert', 'ncert_page', 'year_asked',
+]
 
 export async function buildFinalJson(batchId: string): Promise<FinalQuestion[]> {
   const batch = await prisma.batch.findUnique({
@@ -75,6 +79,9 @@ export async function buildFinalJson(batchId: string): Promise<FinalQuestion[]> 
   // the internal DB id only when the chapter has no source UUID.
   const chapterUuid = batch.chapter?.uuid ?? batch.chapter?.id ?? null
 
+  // Per-question-type schemas decide which content fields the export carries (2B).
+  const schemas = await getActiveSchemasByCode()
+
   type BatchQuestion = typeof batch.questions[0]
   return batch.questions.map((q: BatchQuestion) => {
     const content = q.content as Record<string, unknown>
@@ -108,34 +115,24 @@ export async function buildFinalJson(batchId: string): Promise<FinalQuestion[]> 
       ...(conceptUuids ? { concept_uuids: conceptUuids } : {}),
     }
 
-    // Build the final question object from DB content (not from imported JSON directly)
-    return {
-      id: q.id,
-      question_text: content.question_text as string,
-      question_type: content.question_type as string,
-      marks: content.marks as number,
-      difficulty: content.difficulty as string,
-      bloom_level: content.bloom_level as string,
-      explanation: content.explanation as string,
-      // Include optional fields if present
-      ...(content.options !== undefined ? { options: content.options } : {}),
-      ...(content.correct_option !== undefined ? { correct_option: content.correct_option } : {}),
-      ...(content.correct_answer !== undefined ? { correct_answer: content.correct_answer } : {}),
-      ...(content.blanks !== undefined ? { blanks: content.blanks } : {}),
-      ...(content.column_a !== undefined ? { column_a: content.column_a } : {}),
-      ...(content.column_b !== undefined ? { column_b: content.column_b } : {}),
-      ...(content.correct_matches !== undefined ? { correct_matches: content.correct_matches } : {}),
-      ...(content.solution_steps !== undefined ? { solution_steps: content.solution_steps } : {}),
-      ...(content.passage !== undefined ? { passage: content.passage } : {}),
-      ...(content.hint !== undefined ? { hint: content.hint } : {}),
-      ...(content.tags !== undefined ? { tags: content.tags } : {}),
-      ...(content.diagram_required !== undefined ? { diagram_required: content.diagram_required } : {}),
-      ...(content.diagram_description !== undefined ? { diagram_description: content.diagram_description } : {}),
-      ...(content.language !== undefined ? { language: content.language } : {}),
-      ...(content.is_ncert !== undefined ? { is_ncert: content.is_ncert } : {}),
-      ...(content.ncert_page !== undefined ? { ncert_page: content.ncert_page } : {}),
-      ...(content.year_asked !== undefined ? { year_asked: content.year_asked } : {}),
-      _meta: meta,
-    } as FinalQuestion
+    // Which content fields to emit: the type's schema `properties` if configured,
+    // otherwise the legacy field list (so exports keep working until a schema is set).
+    const code = String(content.question_type ?? '')
+    const schema = schemas.get(code)
+    const schemaProps =
+      schema && typeof schema.definition === 'object' && schema.definition !== null
+        ? (schema.definition as { properties?: Record<string, unknown> }).properties
+        : undefined
+    const fieldKeys =
+      schemaProps && typeof schemaProps === 'object' ? Object.keys(schemaProps) : LEGACY_FIELDS
+
+    const contentOut: Record<string, unknown> = {}
+    for (const key of fieldKeys) {
+      if (content[key] !== undefined) contentOut[key] = content[key]
+    }
+    // question_type always identifies the record, even if a schema omits it.
+    if (contentOut.question_type === undefined) contentOut.question_type = content.question_type
+
+    return { id: q.id, ...contentOut, _meta: meta } as FinalQuestion
   })
 }

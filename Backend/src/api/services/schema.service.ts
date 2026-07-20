@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { Errors } from '../../utils/app-error'
 
@@ -13,8 +14,9 @@ export async function listSchemas() {
   })
 }
 
-export async function createSchema(name: string, description?: string) {
-  return prisma.schema.create({ data: { name, description: description ?? null } })
+export async function createSchema(name: string, _description?: string) {
+  // Schema has no description column; the param is accepted for API compatibility.
+  return prisma.schema.create({ data: { name } })
 }
 
 export async function getSchema(id: string) {
@@ -42,6 +44,6 @@ export async function createSchemaVersion(
   const nextVersion = (latest?.versionNo ?? 0) + 1
 
   return prisma.schemaVersion.create({
-    data: { schemaId, versionNo: nextVersion, definition, createdById },
+    data: { schemaId, versionNo: nextVersion, definition: definition as Prisma.InputJsonValue, createdById },
   })
 }

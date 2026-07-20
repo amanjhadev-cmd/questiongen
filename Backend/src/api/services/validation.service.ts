@@ -1,8 +1,23 @@
-import Ajv from 'ajv'
+import Ajv, { type ValidateFunction } from 'ajv'
 import addFormats from 'ajv-formats'
 
 const ajv = new Ajv({ allErrors: true })
 addFormats(ajv)
+
+// Lenient AJV for compiling superadmin-authored per-type schemas (they may use
+// keywords our strict instance would reject at compile time).
+const userAjv = new Ajv({ allErrors: true, strict: false })
+addFormats(userAjv)
+
+// Compile a per-question-type schema (from the DB) into a validator. Returns
+// null if the schema can't compile, so validation falls back to the default.
+export function compileTypeSchema(definition: unknown): ValidateFunction | null {
+  try {
+    return userAjv.compile(definition as object)
+  } catch {
+    return null
+  }
+}
 
 // Inline schema (mirrors Assets/json-schemas/question-schema-v2.json version 2)
 const QUESTION_SCHEMA = {
@@ -81,6 +96,7 @@ export function validateQuestion(
     conceptEnabled: boolean
     passageEnabled: boolean
     solutionStepsEnabled: boolean
+    typeSchemaValidator?: ValidateFunction  // per-question-type schema; falls back to the built-in one
   },
 ): ValidationResult {
   const errors: ValidationError[] = []
@@ -111,8 +127,9 @@ export function validateQuestion(
     errors.push({ pass: 2, field: 'concept_uuids', message: 'Concept mapping is disabled for this subject' })
   }
 
-  // Pass 3: JSON Schema validation
-  const validate = _schemaValidator
+  // Pass 3: JSON Schema validation — use the per-question-type schema when one
+  // is configured, otherwise the built-in baseline schema.
+  const validate = options.typeSchemaValidator ?? _schemaValidator
   const schemaValid = validate(q)
   if (!schemaValid && validate.errors) {
     for (const err of validate.errors) {

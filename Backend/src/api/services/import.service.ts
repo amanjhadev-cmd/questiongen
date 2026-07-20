@@ -5,6 +5,9 @@ import { validateQuestion } from './validation.service'
 import { buildInjectedMetadata } from './metadata-injection.service'
 import { logger } from '../../config/logger'
 import { normalizeText, hashText, trigramSet, findDuplicate, type ExistingText } from '../../utils/dedup'
+import { compileTypeSchema } from './validation.service'
+import { getActiveSchemasByCode } from './question-type-schema.service'
+import type { ValidateFunction } from 'ajv'
 
 const DEDUP_THRESHOLD = 0.85
 
@@ -84,6 +87,17 @@ export async function importQuestions(
   // Build injected metadata once for all questions
   const injectedMetadata = await buildInjectedMetadata(batchId)
 
+  // ── Per-question-type schema setup ────────────────────────────────────────────
+  // Compile each configured question-type schema once; questions are validated
+  // against the schema matching their question_type (falls back to the built-in
+  // baseline when a type has no schema yet).
+  const activeSchemas = await getActiveSchemasByCode()
+  const typeValidators = new Map<string, ValidateFunction>()
+  for (const [code, s] of activeSchemas) {
+    const v = compileTypeSchema(s.definition)
+    if (v) typeValidators.set(code, v)
+  }
+
   // ── De-dup setup ──────────────────────────────────────────────────────────────
   // Load existing "kept" questions for this chapter (across all batches) to compare
   // against. Rows with no normalizedText (pre-dedup imports) are skipped — run the
@@ -112,7 +126,8 @@ export async function importQuestions(
 
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i]
-    const validation = validateQuestion(q, validationOptions)
+    const typeSchemaValidator = typeValidators.get(String(q.question_type ?? ''))
+    const validation = validateQuestion(q, { ...validationOptions, typeSchemaValidator })
 
     if (validation.valid) {
       // ── De-dup check (per chapter, incl. earlier questions in this same import) ──
@@ -253,6 +268,14 @@ export async function revalidateBatch(batchId: string): Promise<ImportResult> {
     solutionStepsEnabled: profile.solutionStepsEnabled as boolean,
   }
 
+  // Per-question-type schema validators (same as import)
+  const activeSchemas = await getActiveSchemasByCode()
+  const typeValidators = new Map<string, ValidateFunction>()
+  for (const [code, s] of activeSchemas) {
+    const v = compileTypeSchema(s.definition)
+    if (v) typeValidators.set(code, v)
+  }
+
   const questions = await prisma.question.findMany({
     where: { batchId, status: 'validation_failed' },
   })
@@ -264,7 +287,8 @@ export async function revalidateBatch(batchId: string): Promise<ImportResult> {
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i]
     const content = q.content as Record<string, unknown>
-    const validation = validateQuestion(content, validationOptions)
+    const typeSchemaValidator = typeValidators.get(String(content.question_type ?? ''))
+    const validation = validateQuestion(content, { ...validationOptions, typeSchemaValidator })
 
     if (validation.valid) {
       const normalized = normalizeText(String(content.question_text ?? ''))
