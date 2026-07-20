@@ -11,7 +11,7 @@ export default function BatchPromptPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
-  const [bloomLevel, setBloomLevel] = useState('understand')
+  const [blooms, setBlooms] = useState<string[]>(['understand'])
 
   useEffect(() => {
     api.get<PromptPreview>(`/batches/${id}/prompt-preview`)
@@ -20,7 +20,24 @@ export default function BatchPromptPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const finalPrompt = preview?.interpolatedPrompt.replace('{{bloom_level}}', bloomLevel) ?? ''
+  const BLOOM_LEVELS = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create']
+  const allSelected = blooms.length === BLOOM_LEVELS.length
+
+  function toggleBloom(b: string) {
+    setBlooms((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]))
+  }
+  function toggleAll() {
+    setBlooms(allSelected ? [] : [...BLOOM_LEVELS])
+  }
+
+  // Replace {{bloom_level}} with the chosen level(s). "All" reads naturally.
+  const bloomText =
+    blooms.length === 0
+      ? '{{bloom_level}}'
+      : allSelected
+        ? 'any Bloom level (remember, understand, apply, analyze, evaluate, create) — spread the questions across all six'
+        : blooms.join(', ')
+  const finalPrompt = (preview?.interpolatedPrompt ?? '').replaceAll('{{bloom_level}}', bloomText)
 
   function copyPrompt() {
     navigator.clipboard.writeText(finalPrompt)
@@ -81,18 +98,29 @@ export default function BatchPromptPage() {
         </div>
       )}
 
-      {/* Bloom level selector */}
+      {/* Bloom level selector (multi-select) */}
       <div className="card p-4">
-        <label className="label">Bloom&apos;s Taxonomy Level (select before copying)</label>
-        <select
-          className="input !w-64"
-          value={bloomLevel}
-          onChange={(e) => setBloomLevel(e.target.value)}
-        >
-          {['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'].map((b) => (
-            <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>
+        <div className="flex items-center justify-between mb-2">
+          <label className="label mb-0">Bloom&apos;s Taxonomy Level(s) — select one, several, or all before copying</label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+            <span className="font-medium">All</span>
+          </label>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {BLOOM_LEVELS.map((b) => (
+            <label
+              key={b}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer text-sm ${
+                blooms.includes(b) ? 'border-brand bg-brand-muted text-brand' : 'border-gray-200 text-gray-600'
+              }`}
+            >
+              <input type="checkbox" checked={blooms.includes(b)} onChange={() => toggleBloom(b)} className="hidden" />
+              {b.charAt(0).toUpperCase() + b.slice(1)}
+            </label>
           ))}
-        </select>
+        </div>
+        {blooms.length === 0 && <p className="text-xs text-orange-500 mt-2">Select at least one level, or the prompt will keep the {'{{bloom_level}}'} placeholder.</p>}
       </div>
 
       {/* Interpolated prompt */}

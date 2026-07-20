@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database'
 import { Errors } from '../../utils/app-error'
 import { getPaginationParams, buildMeta, getSkip } from '../../utils/pagination'
+import { getActiveSchemasByCode } from './question-type-schema.service'
 
 const BATCH_STATUS_ORDER = [
   'created',
@@ -212,6 +213,14 @@ export async function getBatchPromptPreview(batchId: string) {
   if (!promptVersion) throw Errors.validation('No prompt version configured for this subject profile')
   if (promptVersion.status !== 'published') throw Errors.validation('The linked prompt version is not published')
 
+  // Inject the output schema for this batch's question type (from Output Schemas)
+  // into the {{schema}} placeholder so the LLM sees the exact target format.
+  const activeSchemas = await getActiveSchemasByCode()
+  const typeSchema = activeSchemas.get(batch.questionType.code)
+  const schemaText = typeSchema
+    ? JSON.stringify(typeSchema.definition, null, 2)
+    : `(No output schema configured for question type "${batch.questionType.code}". Configure one under Output Schemas.)`
+
   const variables: Record<string, string> = {
     subject: batch.subject.name,
     board: batch.subject.class.board.name,
@@ -220,14 +229,16 @@ export async function getBatchPromptPreview(batchId: string) {
     count: String(batch.questionCount),
     question_type: batch.questionType.code,
     difficulty: batch.difficulty,
-    bloom_level: '{{bloom_level}}', // set by intern at generation time
+    bloom_level: '{{bloom_level}}', // set by intern at generation time (frontend)
     max_concepts: String(profile.maxConcepts),
-    schema: '{{schema}}', // injected separately
+    schema: schemaText,
   }
 
   let interpolated = promptVersion.content
   for (const [key, value] of Object.entries(variables)) {
-    interpolated = interpolated.replaceAll(`{{${key}}}`, value)
+    // Function replacement avoids `$` in the value (e.g. "$schema", "$ref" in an
+    // injected JSON Schema) being treated as a special replacement pattern.
+    interpolated = interpolated.replaceAll(`{{${key}}}`, () => value)
   }
 
   const concepts = (batch.chapter?.concepts ?? []).map(
