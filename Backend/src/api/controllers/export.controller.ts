@@ -45,3 +45,9 @@ export async function syncToN8n(req: Request, res: Response, next: NextFunction)
     res.json(await syncSvc.syncBatchToN8n(req.params.batchId))
   } catch (e) { next(e) }
 }
+
+export async function syncToSqs(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await syncSvc.syncBatchToSqs(req.params.batchId))
+  } catch (e) { next(e) }
+}

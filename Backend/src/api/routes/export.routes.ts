@@ -14,5 +14,6 @@ router.post('/exports/excel', requireRole('super_admin', 'admin'), ctrl.triggerE
 router.post('/exports/pdf', requireRole('super_admin', 'admin'), ctrl.triggerPdfExport)
 router.post('/exports/mark-complete', requireRole('super_admin', 'admin'), ctrl.markExportComplete)
 router.post('/sync', requireRole('super_admin', 'admin'), ctrl.syncToN8n)
+router.post('/sqs-sync', requireRole('super_admin', 'admin'), ctrl.syncToSqs)
 
 export default router

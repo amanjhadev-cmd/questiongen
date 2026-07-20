@@ -54,13 +54,27 @@ export default function ExportPage() {
   }
 
   async function sync() {
-    if (!confirm('Sync this batch to production? This cannot be undone.')) return
+    if (!confirm('Sync this batch to production via n8n? This cannot be undone.')) return
     setSyncing(true)
     try {
       await api.post(`/batches/${id}/sync`, {})
       router.push(`/batches/${id}`)
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Sync failed')
+      setSyncing(false)
+    }
+  }
+
+  async function pushToSqs() {
+    if (!confirm('Re-validate all questions and push them to the SQS queue? This cannot be undone.')) return
+    setSyncing(true)
+    try {
+      const res = await api.post<{ pushed: number }>(`/batches/${id}/sqs-sync`, {})
+      alert(`Pushed ${res.pushed} question(s) to the queue.`)
+      router.push(`/batches/${id}`)
+    } catch (e: unknown) {
+      // Abort-before-push validation failures come back here with a clear message.
+      alert(e instanceof Error ? e.message : 'SQS push failed')
       setSyncing(false)
     }
   }
@@ -128,24 +142,28 @@ export default function ExportPage() {
         </div>
       )}
 
-      {/* Sync button */}
+      {/* Sync section */}
       {(isExportComplete || isSynced) && (
         <div className={`card p-5 flex items-center justify-between ${isSynced ? 'bg-green-50 border border-green-200' : ''}`}>
           <div>
             <p className="font-semibold text-sm">{isSynced ? 'Synced to Production' : 'Ready to Sync'}</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              {isSynced ? 'This batch has been sent to the production database.' : 'All exports generated. Push to production DB via n8n webhook.'}
+              {isSynced
+                ? 'This batch has been sent to production.'
+                : 'All exports generated. Push to production via n8n, or push each question to the SQS queue (re-validated first).'}
             </p>
           </div>
           {!isSynced && (
-            <button
-              onClick={sync}
-              disabled={syncing}
-              className="btn-primary flex items-center gap-2"
-            >
-              {syncing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
-              {syncing ? 'Syncing…' : 'Sync to Production'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={pushToSqs} disabled={syncing} className="btn-secondary flex items-center gap-2">
+                {syncing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
+                Push to SQS
+              </button>
+              <button onClick={sync} disabled={syncing} className="btn-primary flex items-center gap-2">
+                {syncing ? <RefreshCw size={16} className="animate-spin" /> : <Upload size={16} />}
+                {syncing ? 'Working…' : 'Sync via n8n'}
+              </button>
+            </div>
           )}
         </div>
       )}

@@ -23,6 +23,11 @@ const envSchema = z.object({
   R2_PUBLIC_URL: optionalUrl,
   N8N_WEBHOOK_URL: optionalUrl,
   N8N_SECRET_HEADER: z.string().optional(),
+  // AWS SQS (alternative to n8n for pushing the final JSON to production)
+  SQS_QUEUE_URL: optionalUrl,
+  SQS_REGION: z.string().optional(),
+  SQS_ACCESS_KEY_ID: z.string().optional(),
+  SQS_SECRET_ACCESS_KEY: z.string().optional(),
   FRONTEND_URL: z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
     z.string().url().default('http://localhost:3000'),
