@@ -16,6 +16,7 @@ export default function ExportPage() {
   const [triggering, setTriggering] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [markingComplete, setMarkingComplete] = useState(false)
+  const [sqsFailures, setSqsFailures] = useState<Array<{ index: number; questionId: string; errors: string[] }> | null>(null)
 
   async function load() {
     const [b, e] = await Promise.all([
@@ -68,13 +69,20 @@ export default function ExportPage() {
   async function pushToSqs() {
     if (!confirm('Re-validate all questions and push them to the SQS queue? This cannot be undone.')) return
     setSyncing(true)
+    setSqsFailures(null)
     try {
       const res = await api.post<{ pushed: number }>(`/batches/${id}/sqs-sync`, {})
       alert(`Pushed ${res.pushed} question(s) to the queue.`)
       router.push(`/batches/${id}`)
     } catch (e: unknown) {
-      // Abort-before-push validation failures come back here with a clear message.
-      alert(e instanceof Error ? e.message : 'SQS push failed')
+      // Abort-before-push: the backend returns the failing questions in body.details.failures.
+      const body = (e as { body?: { details?: { failures?: Array<{ index: number; questionId: string; errors: string[] }> } } })?.body
+      const failures = body?.details?.failures
+      if (failures && failures.length) {
+        setSqsFailures(failures)
+      } else {
+        alert(e instanceof Error ? e.message : 'SQS push failed')
+      }
       setSyncing(false)
     }
   }
@@ -139,6 +147,27 @@ export default function ExportPage() {
               {markingComplete ? 'Marking…' : 'Mark Export Complete'}
             </button>
           )}
+        </div>
+      )}
+
+      {/* SQS re-validation failures (abort-before-push) */}
+      {sqsFailures && sqsFailures.length > 0 && (
+        <div className="card p-5 border-2 border-red-200 bg-red-50/40 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-red-700">
+              {sqsFailures.length} question(s) failed schema re-validation — nothing was pushed.
+            </p>
+            <button onClick={() => setSqsFailures(null)} className="text-xs text-gray-400 hover:text-gray-600">Dismiss</button>
+          </div>
+          <div className="space-y-1 max-h-56 overflow-y-auto">
+            {sqsFailures.map((f) => (
+              <div key={f.questionId} className="text-xs text-red-700 bg-white border border-red-200 rounded px-3 py-2">
+                <span className="font-semibold">Question #{f.index + 1}</span>
+                {f.errors.slice(0, 4).map((msg, i) => <p key={i} className="ml-2">· {msg}</p>)}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500">Fix these (re-import/re-review), then try the push again.</p>
         </div>
       )}
 
