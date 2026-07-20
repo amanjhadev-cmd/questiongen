@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { statusColor, formatDate } from '@/lib/utils'
+import { QuestionView } from '@/components/QuestionView'
 import type { Question, QuestionContent } from '@/types'
 
 const STATUS_OPTIONS = [
@@ -93,33 +94,7 @@ export default function BatchQuestionsPage() {
 
               {isOpen && (
                 <div className="border-t border-gray-100 px-5 pb-5 pt-4 space-y-4">
-                  <p className="text-sm text-gray-800">{content.question_text}</p>
-
-                  {content.options && (
-                    <ol type="A" className="space-y-2 ml-4 list-[upper-alpha]">
-                      {content.options.map((o) => (
-                        <li
-                          key={o.key}
-                          className={`text-sm px-3 py-2 rounded-lg border ${
-                            o.key === content.correct_option
-                              ? 'bg-green-50 border-green-300 font-medium'
-                              : 'border-gray-200'
-                          }`}
-                        >
-                          {o.text}
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-
-                  {content.correct_answer !== undefined && (
-                    <p className="text-sm"><strong>Answer:</strong> {content.correct_answer ? 'True' : 'False'}</p>
-                  )}
-
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-blue-600 mb-1">Explanation</p>
-                    <p className="text-sm text-blue-800">{content.explanation}</p>
-                  </div>
+                  <QuestionView content={content} />
 
                   {q.status === 'validation_failed' && (q as Question & { importErrors?: unknown[] }).importErrors && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">

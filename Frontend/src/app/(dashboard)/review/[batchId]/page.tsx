@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { ProtectedContent } from '@/components/ProtectedContent'
+import { QuestionView } from '@/components/QuestionView'
 import { statusColor } from '@/lib/utils'
 import type { Question, QuestionContent } from '@/types'
 import { CheckCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -136,49 +137,7 @@ export default function ReviewPage() {
               <span className={`badge ${statusColor(question.status)}`}>{question.status}</span>
             </div>
 
-            <p className="text-base text-gray-900 leading-relaxed">{content.question_text}</p>
-
-            {activeDiagram && (
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-gray-400">Diagram</p>
-                <img
-                  src={activeDiagram.publicUrl}
-                  alt="Question diagram"
-                  draggable={false}
-                  onContextMenu={(e) => e.preventDefault()}
-                  className="max-h-64 rounded-lg border border-gray-200 object-contain pointer-events-none"
-                />
-              </div>
-            )}
-
-            {content.options && (
-              <ol type="A" className="space-y-2 ml-4 list-[upper-alpha]">
-                {content.options.map((o) => (
-                  <li
-                    key={o.key}
-                    className={`text-sm px-3 py-2 rounded-lg border ${o.key === content.correct_option ? 'bg-green-50 border-green-300 font-medium' : 'border-gray-200'}`}
-                  >
-                    {o.text}
-                  </li>
-                ))}
-              </ol>
-            )}
-
-            {content.correct_answer !== undefined && (
-              <p className="text-sm"><strong>Answer:</strong> {content.correct_answer ? 'True' : 'False'}</p>
-            )}
-
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-              <p className="text-xs font-semibold text-blue-600 mb-1">Explanation</p>
-              <p className="text-sm text-blue-800">{content.explanation}</p>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <span className={`badge ${statusColor(content.difficulty)}`}>{content.difficulty}</span>
-              <span>{content.bloom_level}</span>
-              <span>{content.marks} mark(s)</span>
-              {content.is_ncert && <span className="badge bg-orange-100 text-orange-700">NCERT p.{content.ncert_page}</span>}
-            </div>
+            <QuestionView content={content} diagramUrl={activeDiagram?.publicUrl} />
           </div>
 
           {/* Review panel */}
