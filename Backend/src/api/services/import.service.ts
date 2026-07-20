@@ -129,7 +129,7 @@ export async function importQuestions(
     const q = questions[i]
     const fields = extractQuestionFields(q)
     const typeSchemaValidator = typeValidators.get(fields.questionType)
-    const validation = validateQuestion(q, { ...validationOptions, typeSchemaValidator })
+    const validation = validateQuestion(q, { ...validationOptions, typeSchemaValidator, conceptUuids: fields.conceptUuids })
 
     if (validation.valid) {
       // ── De-dup check (per chapter, incl. earlier questions in this same import) ──
@@ -290,7 +290,7 @@ export async function revalidateBatch(batchId: string): Promise<ImportResult> {
     const content = q.content as Record<string, unknown>
     const fields = extractQuestionFields(content)
     const typeSchemaValidator = typeValidators.get(fields.questionType)
-    const validation = validateQuestion(content, { ...validationOptions, typeSchemaValidator })
+    const validation = validateQuestion(content, { ...validationOptions, typeSchemaValidator, conceptUuids: fields.conceptUuids })
 
     if (validation.valid) {
       const normalized = normalizeText(fields.questionText)

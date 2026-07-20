@@ -97,9 +97,14 @@ export function validateQuestion(
     passageEnabled: boolean
     solutionStepsEnabled: boolean
     typeSchemaValidator?: ValidateFunction  // per-question-type schema; falls back to the built-in one
+    conceptUuids?: string[]                 // resolved concept UUIDs (works for nested + flat formats)
   },
 ): ValidationResult {
   const errors: ValidationError[] = []
+
+  // Concept UUIDs come either from the adapter (nested format) or the flat field.
+  const conceptUuids: string[] = options.conceptUuids
+    ?? (Array.isArray(q.concept_uuids) ? (q.concept_uuids as string[]) : [])
 
   // Pass 1: Auto-injected field check — these must NOT be present in import
   for (const field of AUTO_INJECTED_FIELDS) {
@@ -123,7 +128,7 @@ export function validateQuestion(
   if (!options.solutionStepsEnabled && q.solution_steps !== undefined) {
     errors.push({ pass: 2, field: 'solution_steps', message: 'Solution steps are disabled for this subject' })
   }
-  if (!options.conceptEnabled && Array.isArray(q.concept_uuids) && (q.concept_uuids as unknown[]).length > 0) {
+  if (!options.conceptEnabled && conceptUuids.length > 0) {
     errors.push({ pass: 2, field: 'concept_uuids', message: 'Concept mapping is disabled for this subject' })
   }
 
@@ -224,16 +229,13 @@ export function validateQuestion(
     }
   }
 
-  // Pass 9: Concept UUID validation
-  if (Array.isArray(q.concept_uuids)) {
-    const uuids = q.concept_uuids as string[]
-    if (options.conceptEnabled) {
-      for (const uuid of uuids) {
-        if (!CONCEPT_UUID_PATTERN.test(uuid)) {
-          errors.push({ pass: 9, field: 'concept_uuids', message: `Concept UUID '${uuid}' is not a valid UUID format` })
-        } else if (options.allowedConceptUuids && !options.allowedConceptUuids.has(uuid)) {
-          errors.push({ pass: 9, field: 'concept_uuids', message: `Concept UUID '${uuid}' does not exist in this chapter` })
-        }
+  // Pass 9: Concept UUID validation (works for nested + flat via resolved list)
+  if (options.conceptEnabled && conceptUuids.length > 0) {
+    for (const uuid of conceptUuids) {
+      if (!CONCEPT_UUID_PATTERN.test(uuid)) {
+        errors.push({ pass: 9, field: 'concept_uuids', message: `Concept UUID '${uuid}' is not a valid UUID format` })
+      } else if (options.allowedConceptUuids && !options.allowedConceptUuids.has(uuid)) {
+        errors.push({ pass: 9, field: 'concept_uuids', message: `Concept UUID '${uuid}' does not exist in this chapter` })
       }
     }
   }

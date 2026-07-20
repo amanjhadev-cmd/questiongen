@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../../config/database'
 import { Errors } from '../../utils/app-error'
 import { getPaginationParams, buildMeta, getSkip } from '../../utils/pagination'
@@ -141,6 +142,36 @@ export async function updateBatch(
     data: { name: data.name, notes: data.notes, assignedTo: data.assignedTo ?? null },
     include: batchIncludes,
   })
+}
+
+// Remove rejected questions and reopen the batch so an intern can regenerate
+// replacements. Approved questions are kept; the batch goes back to
+// 'generation_complete' so the prompt can be re-copied and new JSON imported.
+export async function reopenRejected(id: string) {
+  const batch = await prisma.batch.findUnique({ where: { id } })
+  if (!batch) throw Errors.notFound('Batch')
+  if (['created', 'generation_complete', 'export_complete', 'synced'].includes(batch.status)) {
+    throw Errors.validation(`Cannot regenerate rejected questions from '${batch.status}' status`)
+  }
+
+  const rejected = await prisma.question.findMany({ where: { batchId: id, status: 'rejected' }, select: { id: true } })
+  if (rejected.length === 0) throw Errors.validation('No rejected questions to regenerate')
+  const ids = rejected.map((r: { id: string }) => r.id)
+
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const jobs = await tx.diagramJob.findMany({ where: { questionId: { in: ids } }, select: { id: true } })
+    const jobIds = jobs.map((j: { id: string }) => j.id)
+    if (jobIds.length > 0) {
+      await tx.diagramAsset.deleteMany({ where: { diagramJobId: { in: jobIds } } })
+      await tx.diagramJob.deleteMany({ where: { id: { in: jobIds } } })
+    }
+    await tx.smeReview.deleteMany({ where: { questionId: { in: ids } } })
+    await tx.questionVersion.deleteMany({ where: { questionId: { in: ids } } })
+    await tx.question.deleteMany({ where: { id: { in: ids } } })
+    await tx.batch.update({ where: { id }, data: { status: 'generation_complete' } })
+  })
+
+  return { removed: ids.length, status: 'generation_complete' }
 }
 
 export async function markGenerationComplete(id: string) {

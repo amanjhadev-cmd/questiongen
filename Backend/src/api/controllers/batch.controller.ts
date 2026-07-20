@@ -41,6 +41,12 @@ export async function markGenerationComplete(req: Request, res: Response, next: 
   } catch (e) { next(e) }
 }
 
+export async function reopenRejected(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await svc.reopenRejected(req.params.id))
+  } catch (e) { next(e) }
+}
+
 export async function sendToReview(req: Request, res: Response, next: NextFunction) {
   try {
     const { smeId } = req.body

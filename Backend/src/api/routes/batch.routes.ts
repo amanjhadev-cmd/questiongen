@@ -14,6 +14,7 @@ router.get('/:id', ctrl.getBatch)
 router.post('/', requireRole('super_admin', 'admin', 'intern'), validate(createBatchSchema), ctrl.createBatch)
 router.patch('/:id', requireRole('super_admin', 'admin', 'intern'), validate(updateBatchSchema), ctrl.updateBatch)
 router.post('/:id/mark-generation-complete', requireRole('super_admin', 'admin', 'intern'), ctrl.markGenerationComplete)
+router.post('/:id/reopen-rejected', requireRole('super_admin', 'admin', 'intern'), ctrl.reopenRejected)
 router.post('/:id/send-to-review', requireRole('super_admin', 'admin'), validate(sendToReviewSchema), ctrl.sendToReview)
 router.get('/:id/prompt-preview', ctrl.getBatchPromptPreview)
 

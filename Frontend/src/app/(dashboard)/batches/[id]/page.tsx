@@ -47,6 +47,19 @@ export default function BatchDetailPage() {
     setAction('')
   }
 
+  async function regenerateRejected() {
+    if (!confirm(`Remove ${rejected} rejected question(s) and reopen this batch so you can generate replacements? Approved questions are kept.`)) return
+    setAction('reopen')
+    try {
+      const updated = await api.post<{ removed: number }>(`/batches/${id}/reopen-rejected`, {})
+      alert(`Removed ${updated.removed} rejected question(s). Batch reopened — view the prompt and import replacements.`)
+      const b = await api.get<Batch>(`/batches/${id}`)
+      const q = await api.get<Question[]>(`/batches/${id}/questions`)
+      setBatch(b); setQuestions(q)
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed') }
+    setAction('')
+  }
+
   async function assignSme() {
     if (!selectedSme) return
     setAssigning(true)
@@ -170,6 +183,16 @@ export default function BatchDetailPage() {
               <Link href={`/batches/${id}/export`} className="btn-secondary w-full justify-center text-sm">
                 <CheckCircle size={15} /> View Exports
               </Link>
+            )}
+
+            {rejected > 0 && ['validation_complete', 'diagram_complete', 'sme_review_complete'].includes(batch.status) && (
+              <button
+                onClick={regenerateRejected}
+                disabled={action === 'reopen'}
+                className="btn-secondary w-full justify-center text-sm text-red-600 border-red-200 hover:bg-red-50"
+              >
+                {action === 'reopen' ? 'Reopening…' : `♻ Regenerate Rejected (${rejected})`}
+              </button>
             )}
           </div>
 
