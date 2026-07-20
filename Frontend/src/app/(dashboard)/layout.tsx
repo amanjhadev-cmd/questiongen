@@ -14,6 +14,7 @@ import {
   Users,
   Database,
   BarChart3,
+  Braces,
 } from 'lucide-react'
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { href: '/review', label: 'Review Queue', icon: FileText, roles: ['super_admin', 'admin', 'sme'] },
   { href: '/prompts', label: 'Prompt Library', icon: BookOpen, roles: ['super_admin', 'admin'] },
   { href: '/master', label: 'Master Data', icon: Database, roles: ['super_admin', 'admin'] },
+  { href: '/output-schemas', label: 'Output Schemas', icon: Braces, roles: ['super_admin', 'admin'] },
   { href: '/users', label: 'Users', icon: Users, roles: ['super_admin'] },
   { href: '/settings', label: 'Settings', icon: Settings, roles: ['super_admin', 'admin'] },
 ]
