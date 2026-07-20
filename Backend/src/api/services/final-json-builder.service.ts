@@ -32,7 +32,7 @@ const LEGACY_FIELDS = [
   'diagram_required', 'diagram_description', 'language', 'is_ncert', 'ncert_page', 'year_asked',
 ]
 
-export async function buildFinalJson(batchId: string): Promise<FinalQuestion[]> {
+export async function buildFinalJson(batchId: string): Promise<Array<Record<string, unknown>>> {
   const batch = await prisma.batch.findUnique({
     where: { id: batchId },
     include: {
@@ -83,8 +83,18 @@ export async function buildFinalJson(batchId: string): Promise<FinalQuestion[]> 
   const schemas = await getActiveSchemasByCode()
 
   type BatchQuestion = typeof batch.questions[0]
-  return batch.questions.map((q: BatchQuestion) => {
+  return batch.questions.map((q: BatchQuestion): Record<string, unknown> => {
     const content = q.content as Record<string, unknown>
+
+    // ── Nested production format: echo it back, overriding identity fields ────────
+    if (content.metadata && content.question) {
+      const c = JSON.parse(JSON.stringify(content)) as Record<string, unknown>
+      const m = c.metadata as Record<string, unknown>
+      if (batch.chapter?.uuid) m.chapter_uuid = batch.chapter.uuid // guarantee correct chapter linkage
+      m.batch_uuid = batch.id
+      return { id: q.id, ...c }
+    }
+
     const injectedMeta = q.injectedMetadata as Record<string, unknown>
 
     // Active diagram asset (if any)

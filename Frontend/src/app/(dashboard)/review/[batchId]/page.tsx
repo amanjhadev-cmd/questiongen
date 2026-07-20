@@ -41,7 +41,7 @@ export default function ReviewPage() {
   }, [batchId])
 
   const question = batch?.questions[idx]
-  const content = question?.content as QuestionContent | undefined
+  const content = question?.content as Record<string, unknown> | undefined
   const latestReview = question?.smeReviews?.[0]
   const activeDiagram = question?.diagramJobs?.[0]?.assets?.find((a) => a.isActive)
 

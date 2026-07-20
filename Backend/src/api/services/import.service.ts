@@ -7,6 +7,7 @@ import { logger } from '../../config/logger'
 import { normalizeText, hashText, trigramSet, findDuplicate, type ExistingText } from '../../utils/dedup'
 import { compileTypeSchema } from './validation.service'
 import { getActiveSchemasByCode } from './question-type-schema.service'
+import { extractQuestionFields } from '../../utils/question-fields'
 import type { ValidateFunction } from 'ajv'
 
 const DEDUP_THRESHOLD = 0.85
@@ -126,13 +127,13 @@ export async function importQuestions(
 
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i]
-    const typeSchemaValidator = typeValidators.get(String(q.question_type ?? ''))
+    const fields = extractQuestionFields(q)
+    const typeSchemaValidator = typeValidators.get(fields.questionType)
     const validation = validateQuestion(q, { ...validationOptions, typeSchemaValidator })
 
     if (validation.valid) {
       // ── De-dup check (per chapter, incl. earlier questions in this same import) ──
-      const questionText = String(q.question_text ?? '')
-      const normalized = normalizeText(questionText)
+      const normalized = normalizeText(fields.questionText)
       const hash = hashText(normalized)
       const dup = findDuplicate(normalized, hash, existingTexts, DEDUP_THRESHOLD)
       if (dup) {
@@ -147,13 +148,12 @@ export async function importQuestions(
         duplicates++
         continue
       }
-      // Resolve primary concept FK if concept_uuids present
+      // Resolve primary concept FK from the first concept UUID (either format)
       let conceptId: string | null = null
       let conceptUuid: string | null = null
 
-      if (profile.conceptEnabled && Array.isArray(q.concept_uuids) && (q.concept_uuids as string[]).length > 0) {
-        const firstUuid = (q.concept_uuids as string[])[0]
-        const concept = await prisma.concept.findUnique({ where: { uuid: firstUuid } })
+      if (fields.conceptUuids.length > 0) {
+        const concept = await prisma.concept.findUnique({ where: { uuid: fields.conceptUuids[0] } })
         if (concept) {
           conceptId = concept.id
           conceptUuid = concept.uuid
@@ -170,8 +170,8 @@ export async function importQuestions(
           content: q as object,
           normalizedText: normalized,
           textHash: hash,
-          difficulty: (q.difficulty as string | undefined) ?? null,
-          bloomLevel: (q.bloom_level as string | undefined) ?? null,
+          difficulty: fields.difficulty,
+          bloomLevel: fields.bloomLevel,
           injectedMetadata: injectedMetadata as object,
           status: 'validated',
           importErrors: [],
@@ -193,12 +193,13 @@ export async function importQuestions(
         },
       })
 
-      // If diagram required, create diagram job
-      if (q.diagram_required === true && q.diagram_description) {
+      // If a diagram job is needed (flat format), create it. Nested format
+      // already carries question_diagram_url, so no job.
+      if (fields.diagramRequired && fields.diagramDescription) {
         await prisma.diagramJob.create({
           data: {
             questionId: question.id,
-            description: q.diagram_description as string,
+            description: fields.diagramDescription,
             status: 'pending',
           },
         })
@@ -287,11 +288,12 @@ export async function revalidateBatch(batchId: string): Promise<ImportResult> {
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i]
     const content = q.content as Record<string, unknown>
-    const typeSchemaValidator = typeValidators.get(String(content.question_type ?? ''))
+    const fields = extractQuestionFields(content)
+    const typeSchemaValidator = typeValidators.get(fields.questionType)
     const validation = validateQuestion(content, { ...validationOptions, typeSchemaValidator })
 
     if (validation.valid) {
-      const normalized = normalizeText(String(content.question_text ?? ''))
+      const normalized = normalizeText(fields.questionText)
       await prisma.question.update({
         where: { id: q.id },
         data: {
@@ -300,8 +302,8 @@ export async function revalidateBatch(batchId: string): Promise<ImportResult> {
           chapterId: batch.chapterId ?? null,
           normalizedText: normalized,
           textHash: hashText(normalized),
-          difficulty: (content.difficulty as string | undefined) ?? null,
-          bloomLevel: (content.bloom_level as string | undefined) ?? null,
+          difficulty: fields.difficulty,
+          bloomLevel: fields.bloomLevel,
         },
       })
       results.push({ index: i, questionId: q.id, valid: true, errors: [] })

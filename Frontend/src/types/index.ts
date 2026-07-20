@@ -11,7 +11,7 @@ export interface User {
 export interface Board { id: string; name: string }
 export interface Class { id: string; boardId: string; name: string; board: Board }
 export interface Subject { id: string; classId: string; name: string; code: string; class: Class }
-export interface Chapter { id: string; subjectId: string; name: string; chapterNo: number }
+export interface Chapter { id: string; subjectId: string; name: string; chapterNo: number; uuid?: string | null }
 export interface Concept { id: string; chapterId: string; name: string; uuid: string; shortNote?: string }
 export interface QuestionType { id: string; code: string; label: string }
 

@@ -64,7 +64,9 @@ export async function exportExcel(batchId: string, requestedById: string) {
   })
 
   try {
-    const questions = await buildFinalJson(batchId)
+    // Excel/PDF builders read the flat shape; nested-format fields render blank
+    // (JSON export + SQS carry the full nested payload).
+    const questions = await buildFinalJson(batchId) as unknown as FinalQuestion[]
     const buffer = await buildExcelBuffer(questions)
 
     const filename = `questions-${timestamp()}.xlsx`
@@ -175,7 +177,7 @@ export async function exportPdf(batchId: string, requestedById: string) {
   })
 
   try {
-    const questions = await buildFinalJson(batchId)
+    const questions = await buildFinalJson(batchId) as unknown as FinalQuestion[]
     const buffer = await buildPdfBuffer(batchId, questions)
 
     const filename = `questions-${timestamp()}.pdf`

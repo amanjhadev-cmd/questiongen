@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import { statusColor, formatDate } from '@/lib/utils'
 import { QuestionView } from '@/components/QuestionView'
-import type { Question, QuestionContent } from '@/types'
+import { getQuestionText, stripHtml, getDifficulty, getBloom, getMarks } from '@/lib/question-fields'
+import type { Question } from '@/types'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All' },
@@ -71,7 +72,11 @@ export default function BatchQuestionsPage() {
           <div className="card p-8 text-center text-gray-400 text-sm">No questions match this filter.</div>
         )}
         {questions.map((q, i) => {
-          const content = q.content as QuestionContent
+          const content = q.content as unknown as Record<string, unknown>
+          const preview = stripHtml(getQuestionText(content))
+          const difficulty = getDifficulty(content)
+          const bloom = getBloom(content)
+          const marks = getMarks(content)
           const isOpen = expanded === q.id
           return (
             <div key={q.id} className="card">
@@ -81,12 +86,12 @@ export default function BatchQuestionsPage() {
               >
                 <span className="text-gray-400 text-sm w-6 flex-shrink-0 mt-0.5">{i + 1}.</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 line-clamp-2">{content.question_text}</p>
+                  <p className="text-sm text-gray-800 line-clamp-2">{preview}</p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className={`badge ${statusColor(q.status)}`}>{q.status}</span>
-                    <span className={`badge ${statusColor(content.difficulty)}`}>{content.difficulty}</span>
-                    <span className="text-xs text-gray-400">{content.bloom_level}</span>
-                    <span className="text-xs text-gray-400">{content.marks} mk</span>
+                    {difficulty && <span className={`badge ${statusColor(difficulty)}`}>{difficulty}</span>}
+                    {bloom && <span className="text-xs text-gray-400">{bloom}</span>}
+                    {marks !== undefined && <span className="text-xs text-gray-400">{marks} mk</span>}
                   </div>
                 </div>
                 <span className="text-gray-300 text-xs mt-1">{isOpen ? '▲' : '▼'}</span>

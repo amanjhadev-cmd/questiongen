@@ -134,15 +134,19 @@ export async function syncBatchToSqs(batchId: string) {
 
   for (let i = 0; i < finalQuestions.length; i += 10) {
     const chunk = finalQuestions.slice(i, i + 10)
-    const entries: SendMessageBatchRequestEntry[] = chunk.map((fq, j) => ({
-      Id: `q${i + j}`,
-      MessageBody: JSON.stringify(fq),
-      ...(isFifo ? { MessageGroupId: batchId, MessageDeduplicationId: String(fq.id) } : {}),
-      MessageAttributes: {
-        batchId: { DataType: 'String', StringValue: batchId },
-        questionType: { DataType: 'String', StringValue: String(fq.question_type) },
-      },
-    }))
+    const entries: SendMessageBatchRequestEntry[] = chunk.map((fq, j) => {
+      const meta = fq.metadata as Record<string, unknown> | undefined
+      const qType = String(fq.question_type ?? meta?.question_type ?? '')
+      return {
+        Id: `q${i + j}`,
+        MessageBody: JSON.stringify(fq),
+        ...(isFifo ? { MessageGroupId: batchId, MessageDeduplicationId: String(fq.id ?? `${batchId}-${i + j}`) } : {}),
+        MessageAttributes: {
+          batchId: { DataType: 'String', StringValue: batchId },
+          questionType: { DataType: 'String', StringValue: qType || 'unknown' },
+        },
+      }
+    })
     const res = await sqsClient.send(new SendMessageBatchCommand({ QueueUrl: SQS_QUEUE_URL, Entries: entries }))
     if (res.Failed && res.Failed.length > 0) {
       logger.error({ batchId, failed: res.Failed }, 'SQS batch send had failures')

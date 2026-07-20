@@ -398,8 +398,11 @@ export default function MasterDataPage() {
         <div className="card divide-y divide-gray-50">
           {chapters.map((c) => (
             <Row key={c.id} onEdit={() => openEdit(c as unknown as Record<string, unknown>)} onDelete={() => handleDelete('chapters', c.id, c.name)}>
-              <span className="text-xs font-mono text-brand bg-brand-muted px-2 py-0.5 rounded w-10 text-center">{c.chapterNo}</span>
-              <span className="text-sm text-gray-800">{c.name}</span>
+              <span className="text-xs font-mono text-brand bg-brand-muted px-2 py-0.5 rounded w-10 text-center flex-shrink-0">{c.chapterNo}</span>
+              <div className="min-w-0">
+                <span className="text-sm text-gray-800">{c.name}</span>
+                {c.uuid && <code className="block text-[11px] text-gray-400 font-mono truncate">{c.uuid}</code>}
+              </div>
             </Row>
           ))}
           {chapters.length === 0 && <Empty>No chapters for this subject.</Empty>}
