@@ -9,10 +9,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Driven by the --accent CSS variable so the Appearance accent picker
+        // recolors the whole app live.
         brand: {
-          DEFAULT: '#1F3864',
-          light: '#2d4f8e',
-          muted: '#e8edf5',
+          DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
+          light: 'rgb(var(--accent-light) / <alpha-value>)',
+          muted: 'rgb(var(--accent) / 0.14)',
         },
       },
       fontFamily: {
